@@ -1,0 +1,5 @@
+[Locations]
+Count=3
+Text[0]=Where
+Text[1]=Where's
+Text[2]=Wheres

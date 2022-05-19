@@ -1,0 +1,539 @@
+program new;
+{$define SMART} //If not using SMART, then comment this line out
+{$i AeroLib/AeroLib.Simba}
+
+const //Script config.
+  P_USERNAME = '';
+  P_PASSWORD = '';
+  Fish_Tool_To_Fish_With := 'Net';  // Net, Bait, Lure, BaitRod, Harpoon, Cage
+
+  PersonalRandomModifier := random(1,1000);
+  dropRandom := random(50,350);
+var
+  AFKCounter             : Integer;
+  playerIsFishing        : Boolean;
+  fishingSpotIsTop       : Boolean;
+  fishingSpotIsRight     : Boolean;
+  fishingSpotIsBottom    : Boolean;
+  fishingSpotIsLeft      : Boolean;
+
+  splitNumbers          : TIntegerArray;
+  dropAmount            : TIntegerArray;
+  dropStart             : TIntegerArray;
+  numberOfSplits        : Integer;
+  completedRandomLoop   : boolean;
+
+procedure declarePlayer();
+begin
+  Me.Name := P_USERNAME;
+  Me.Pass := P_PASSWORD;
+  Me.Active := True;
+  Me.Member := False;
+end;
+
+procedure setupPlayer();
+begin
+  writeln('player setup...');
+  if (not isLoggedIn()) then
+    loginPlayer(false);
+  if (isLoggedIn()) then
+  begin
+    clickNorth(True);
+    setAngle(ANGLE_HIGH);
+  end;
+end;
+
+procedure checkIfIsFishing();
+var
+  netSearchAreaTop      : TBox;
+  netSearchAreaRight    : TBox;
+  netSearchAreaBottom   : TBox;
+  netSearchAreaLeft     : TBox;
+
+  baitSearchAreaTop      : TBox;
+  baitSearchAreaRight    : TBox;
+  baitSearchAreaBottom   : TBox;
+  baitSearchAreaLeft     : TBox;
+
+  harpoonSearchAreaTop     : TBox;
+  harpoonSearchAreaRight   : TBox;
+  harpoonSearchAreaBottom  : TBox;
+  harpoonSearchAreaLeft    : TBox;
+
+  cageSearchAreaTop     : TBox;
+  cageSearchAreaRight   : TBox;
+  cageSearchAreaBottom  : TBox;
+  cageSearchAreaLeft    : TBox;
+
+  color_Net              : TColEx;
+  color_Bait             : TColEx;
+  color_Cage             : TColEx;
+  color_Harpoon          : TColEx;
+
+  color_FishingTool : TColEx;
+  fishingToolSearchAreaTop : TBox;
+  fishingToolSearchAreaRight : TBox;
+  fishingToolSearchAreaBottom : TBox;
+  fishingToolSearchAreaLeft : TBox;
+  fishingToolSearchArea : TBox;
+  fishingSpotLocation : Boolean;
+  i : Integer;
+
+  T                     : Timer;
+begin
+  netSearchAreaTop := [254,144,274,157];
+  netSearchAreaRight := [273,169,298,191];
+  netSearchAreaBottom := [256,178,273,216];
+  netSearchAreaLeft := [214,171,237,191];
+
+  baitSearchAreaTop := [262,101,273,149];
+  baitSearchAreaRight := [273,165,331,183];
+  baitSearchAreaBottom := [248,186,256,237];
+  baitSearchAreaLeft := [184,157,238,178];
+
+  harpoonSearchAreaTop := [258,139,268,166];
+  harpoonSearchAreaRight := [253,158,294,187];
+  harpoonSearchAreaBottom := [253,156,264,215];
+  harpoonSearchAreaLeft := [227,140,268,167];
+
+  cageSearchAreaTop := [247,142,262,152];
+  cageSearchAreaRight := [282,166,295,182];
+  cageSearchAreaBottom := [257,229,272,246];
+  cageSearchAreaLeft := [219,168,234,182];
+
+  color_Net.create(2765113, 15, 0.34, 0.50);
+  color_Bait.create(6694, 15, 0.34, 0.50);
+  color_Harpoon.create(1140619, 15, 0.34, 0.50);
+  color_Cage.create(872564, 15, 0.34, 0.50);
+
+  Case Fish_Tool_To_Fish_With of
+    'Net': begin
+            color_FishingTool    := color_Net;
+            fishingToolSearchAreaTop := netSearchAreaTop;
+            fishingToolSearchAreaRight := netSearchAreaRight;
+            fishingToolSearchAreaBottom := netSearchAreaBottom;
+            fishingToolSearchAreaLeft := netSearchAreaLeft;
+           end;
+    'Bait', 'Lure', 'BaitRod': begin
+            color_FishingTool    := color_Bait;
+            fishingToolSearchAreaTop := baitSearchAreaTop;
+            fishingToolSearchAreaRight := baitSearchAreaRight;
+            fishingToolSearchAreaBottom := baitSearchAreaBottom;
+            fishingToolSearchAreaLeft := baitSearchAreaLeft;
+           end;
+    'Cage': begin
+            color_FishingTool    := color_Cage;
+            fishingToolSearchAreaTop := cageSearchAreaTop;
+            fishingToolSearchAreaRight := cageSearchAreaRight;
+            fishingToolSearchAreaBottom := cageSearchAreaBottom;
+            fishingToolSearchAreaLeft := cageSearchAreaLeft;
+           end;
+    'Harpoon': begin
+            color_FishingTool    := color_Harpoon;
+            fishingToolSearchAreaTop := harpoonSearchAreaTop;
+            fishingToolSearchAreaRight := harpoonSearchAreaRight;
+            fishingToolSearchAreaBottom := harpoonSearchAreaBottom;
+            fishingToolSearchAreaLeft := harpoonSearchAreaLeft;
+           end;
+  end;
+
+  playerIsFishing := False;
+  fishingSpotLocation := False;
+  T.start();
+
+  while ((playerIsFishing = True) OR (T.timeElapsed() <= 5000)) do
+  begin
+
+    for i := 1 to 4 do
+    begin
+    if (playerIsFishing = True) then
+    begin
+      break;
+    end;
+
+      Case i of
+      1 : begin
+            fishingSpotLocation := fishingSpotIsTop;
+            fishingToolSearchArea := fishingToolSearchAreaTop;
+          end;
+      2 : begin
+            fishingSpotLocation := fishingSpotIsRight;
+            fishingToolSearchArea := fishingToolSearchAreaRight;
+          end;
+      3 : begin
+            fishingSpotLocation := fishingSpotIsBottom;
+            fishingToolSearchArea := fishingToolSearchAreaBottom;
+          end;
+      4 : begin
+            fishingSpotLocation := fishingSpotIsLeft;
+            fishingToolSearchArea := fishingToolSearchAreaLeft;
+          end;
+      end;
+
+      if (fishingSpotLocation = True) then
+      begin
+        if color_FishingTool.findIn(fishingToolSearchArea) then
+        begin
+          playerIsFishing := TRUE;
+          writeln('playerIsFishing = ' + toStr(playerIsFishing));
+          exit;
+        end;
+      end;
+
+    end;
+
+  end else
+  begin
+    playerIsFishing := FALSE;
+  end;
+
+  writeln('playerIsFishing = ' + toStr(playerIsFishing));
+end;
+
+procedure fish();
+var
+  Pnt : TPoint;
+  Pnts : TPointArray;
+  TestPnts : TPointArray;
+
+  fishingSpotSearchAreaTop    : TBox;
+  fishingSpotSearchAreaRight  : TBox;
+  fishingSpotSearchAreaBottom : TBox;
+  fishingSpotSearchAreaLeft   : TBox;
+
+  obj_FishingSpot             : TMSObject;
+  color_FishingSpot           : TColEx;
+
+  textToCheckFor              : String;
+  textToCheckForTwo           : String;
+  mouseRightNeeded            : Boolean;
+  clickedOnFishingSpot        : Boolean;
+  i                           : Integer;
+  T                           : Timer;
+
+begin
+
+  obj_FishingSpot.create('Fishing Spot', [''], [createCol(14336937, 13, 0.27, 2.10)], [createCol(14996397, 20, 0.23, 1.15)], 10, 25, 25, 15);
+
+
+  Case Fish_Tool_To_Fish_With of
+    'Net': begin
+            textToCheckFor    := 'Net Fishing spot';
+            mouseRightNeeded  := False;
+           end;
+    'Bait': begin
+            textToCheckFor    := 'Net Fishing spot';
+            mouseRightNeeded  := True;
+            textToCheckForTwo := 'Bait Fishing spot';
+           end;
+    'Lure': begin
+            textToCheckFor    := 'Lure Rod Fishing spot';
+            mouseRightNeeded  := False;
+           end;
+    'BaitRod': begin
+            textToCheckFor    := 'Lure Rod Fishing spot';
+            mouseRightNeeded  := True;
+            textToCheckForTwo := 'Bait Rod Fishing spot';
+           end;
+    'Cage': begin
+            textToCheckFor    := 'Cage Fishing spot';
+            mouseRightNeeded  := False;
+           end;
+    'Harpoon': begin
+            textToCheckFor    := 'Cage Fishing spot';
+            mouseRightNeeded  := True;
+            textToCheckForTwo := 'Harpoon Fishing spot';
+           end;
+  end;
+
+  //Finding fishing spot
+  while (NOT clickedOnFishingSpot = True) do
+  begin
+    if obj_FishingSpot.findall(10, MSCP, Pnts) then
+    begin
+      for i := low(Pnts) to high(Pnts) do
+      begin
+        if (NOT clickedOnFishingSpot = True) then
+        begin
+          HumanMMouse(Pnts[i], 5, 5);
+          if IsUpTextMulti([textToCheckFor]) then
+          begin
+            if (mouseRightNeeded = False) then
+            begin
+              fastClick(MOUSE_LEFT);
+              clickedOnFishingSpot := True;
+            end;
+            if (mouseRightNeeded = True) then
+            begin
+              fastClick(MOUSE_RIGHT);
+              if WaitOption(textToCheckForTwo, 1000) then
+              begin
+                ChooseOption(textToCheckForTwo);
+                clickedOnFishingSpot := True;
+              end;
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+
+  AFKCounter := 0;
+
+  wait(random(1000,2000));
+  While isPlayerWalking() do
+  begin
+    wait(random(500,1200));
+  end;
+
+
+  // Check fishing spots locations.
+  color_FishingSpot.create(14336937,13,0.27,2.10);
+
+  fishingSpotSearchAreaTop := [253,139,278,157];
+  fishingSpotSearchAreaRight := [286,169,307,189];
+  fishingSpotSearchAreaBottom := [247,203,273,227];
+  fishingSpotSearchAreaLeft := [208,171,233,195];
+
+  fishingSpotIsTop    := False;
+  fishingSpotIsRight  := False;
+  fishingSpotIsBottom := False;
+  fishingSpotIsLeft   := False;
+
+  T.start();
+  while (T.timeElapsed() <= 5000) do
+  begin
+    //Top
+    if ((fishingSpotIsTop = False) AND color_FishingSpot.findIn(fishingSpotSearchAreaTop)) then
+    begin
+      writeln('Found fishing spot in area: Top.');
+      fishingSpotIsTop := True;
+    end;
+
+    //Right
+    if ((fishingSpotIsRight = False) AND color_FishingSpot.findIn(fishingSpotSearchAreaRight)) then
+    begin
+      writeln('Found fishing spot in area: Right.');
+      fishingSpotIsRight := True;
+    end;
+
+    //Bottom
+    if ((fishingSpotIsBottom = False) AND color_FishingSpot.findIn(fishingSpotSearchAreaBottom)) then
+    begin
+      writeln('Found fishing spot in area: Bottom.');
+      fishingSpotIsBottom := True;
+    end;
+
+    //Left
+    if ((fishingSpotIsLeft = False) AND color_FishingSpot.findIn(fishingSpotSearchAreaLeft)) then
+    begin
+      writeln('Found fishing spot in area: Left.');
+      fishingSpotIsLeft := True;
+    end;
+  end;
+
+end;
+
+procedure drop();
+var
+  j                     : Integer;
+  i                     : Integer;
+  randomNumber          : Integer;
+  dontDropSpaces        : Integer;
+  chosenOption          : Integer;
+  temporaryInteger      : Integer;
+
+  sortReady             : boolean;
+  randomNumberWasUnique : boolean;
+
+begin
+  writeLn('completedRandomLoop: ' + ToStr(completedRandomLoop));
+  if completedRandomLoop = False then
+  begin
+
+    numberOfSplits := random(1,10);
+    randomNumberWasUnique := True;
+    SetLength(splitNumbers,numberOfSplits);
+
+    for i := 0 to (numberOfSplits-1) do
+    begin
+
+      // Set randomNumberWasUnique to False to enter loop.
+      randomNumberWasUnique := False;
+
+      while randomNumberWasUnique = False do
+      begin
+
+        // Set randomNumberWasUnique to True to enter loop.
+        randomNumberWasUnique := True;
+
+        // Generate new random number.
+        splitNumbers[i] := random(1,100);
+
+        // See if that random number is already in array.
+        for j := 0 to (i-1) do
+        if randomNumberWasUnique = True then
+        begin
+          begin
+            if splitNumbers[i] <> splitNumbers[j] then
+            begin
+              randomNumberWasUnique := True;
+            end;
+            if splitNumbers[i] = splitNumbers[j] then
+            begin
+              randomNumberWasUnique := False;
+            end;
+          end;
+        end;
+
+      end;
+
+    end;
+
+    // Sort the array.
+    sortReady := False;
+    while sortReady = False do
+    begin
+      sortReady := true;
+      for i := 0 to (numberOfSplits-2) do
+      begin
+        if splitNumbers[i] > splitNumbers[i+1] then
+        begin
+          // Put first number in temporary array.
+          temporaryInteger := splitNumbers[i];
+          // Move second number to where first number was.
+          splitNumbers[i] := splitNumbers[(i+1)];
+          // Move first number to second number spot.
+          splitNumbers[(i+1)] := temporaryInteger;
+          sortReady := False;
+        end;
+      end;
+    end;
+    writeLn('numberOfSplits: ' + ToStr(numberOfSplits));
+    writeLn('splitNumbers: ' + ToStr(splitNumbers));
+
+    if((Fish_Tool_To_Fish_With = 'Net') OR (Fish_Tool_To_Fish_With = 'Cage') OR (Fish_Tool_To_Fish_With = 'Harpoon')) then
+      dontDropSpaces := 1;
+    if((Fish_Tool_To_Fish_With = 'Bait') OR (Fish_Tool_To_Fish_With = 'BaitRod') OR (Fish_Tool_To_Fish_With = 'Lure')) then
+      dontDropSpaces := 2;
+
+    // Generate drop amount for each split + 1.
+    SetLength(dropAmount,(numberOfSplits+1));
+    for i := 0 to (numberOfSplits) do
+    begin
+      dropAmount[i] := random(1,(28-dontDropSpaces));
+    end;
+    Writeln('dropAmount: ' + ToStr(dropAmount));
+
+    // Generate where drop starts for each split + 1.
+    SetLength(dropStart,(numberOfSplits+1));
+    for i := 0 to (numberOfSplits) do
+    begin
+      dropStart[i] := random((dontDropSpaces+1),(29-dropAmount[i]));
+    end;
+    Writeln('dropStart: ' + ToStr(dropStart));
+
+    completedRandomLoop := True;
+  end;
+
+  randomNumber := random(1,100);
+  Writeln('randomNumber: ' + ToStr(randomNumber));
+
+  //chosenOption;
+  for i := 0 to (numberOfSplits) do
+  begin
+    if i = 0 then
+    begin
+      case randomNumber of
+        1..splitNumbers[i] : chosenOption := i;
+      end;
+    end;
+    if NOT(i = 0) AND NOT(i = (numberOfSplits)) then
+    begin
+      begin
+        case randomNumber of
+          splitNumbers[(i-1)]..splitNumbers[i] : begin
+          Writeln('i: ' + ToStr(i));
+          chosenOption := i;
+          end;
+        end;
+      end;
+    end;
+    if i = (numberOfSplits) then
+    begin
+      begin
+        case randomNumber of
+          splitNumbers[i-1]..100 : chosenOption := i;
+        end;
+      end;
+    end;
+  end;
+  Writeln('chosenOption: ' + ToStr(chosenOption));
+
+
+  Writeln('dropStart[chosenOption]: ' + ToStr(dropStart[chosenOption]));
+  Writeln('dropStart[chosenOption] + dropAmount[chosenOption]: ' + ToStr(dropStart[chosenOption] + dropAmount[chosenOption]));
+  for i := dropStart[chosenOption] to (dropStart[chosenOption] + dropAmount[chosenOption]) do
+  begin
+    fastDropSlots([i]);
+    wait(gaussRandom(dropRandom));
+  end;
+
+  wait(random(1500,2600));
+
+  if anySlotActivated() = True then
+  begin
+    fastDropSlots([dropStart[chosenOption] + dropAmount[chosenOption]]);
+  end;
+
+  wait(random(100,1500));
+
+  AFKCounter := 0;
+
+end;
+
+
+begin
+  clearDebug();
+  initAL();
+  declarePlayer();
+  setupPlayer();
+
+  writeln('PersonalRandomModifier = ' + toStr(PersonalRandomModifier));
+  writeln('dropRandom = ' + toStr(dropRandom));
+
+  Repeat
+  checkIfIsFishing();
+
+
+  if((Fish_Tool_To_Fish_With = 'Bait') OR (Fish_Tool_To_Fish_With = 'BaitRod') OR (Fish_Tool_To_Fish_With = 'Lure')) then
+  begin
+    if (itemInSlot(2) = False) then
+    begin
+      exit;
+    end;
+  end;
+
+  if isInvFull() then
+  begin
+    drop();
+  end;
+
+  if (playerIsFishing = FALSE) then
+  begin
+    fish();
+    wait(random(150,3500));
+  end;
+
+  if (AFKCounter >= 25) then
+  begin
+    fastClick(MOUSE_RIGHT);
+    HumanMMouse([400, 400], 100, 100);
+    wait(random(100,2500));
+    AFKCounter := 0;
+  end;
+
+  wait(5000);
+  AFKCounter := AFKCounter + 1;
+  Until(false);
+end.

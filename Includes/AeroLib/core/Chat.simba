@@ -1,0 +1,994 @@
+{
+====
+Chat
+====
+}
+
+const
+  CHAT_PUBLIC  = 0;
+  CHAT_PRIVATE = 1;
+  CHAT_CLAN    = 2;
+  CHAT_TRADE   = 3;
+
+(*
+SetChat
+~~~~~~~
+
+.. code-block:: pascal
+
+    function setChat(state: string; chat: Integer): Boolean;
+
+Sets Chat to desired state
+Public  Private  Clan  Trade
+  0        1       2     3
+
+.. note::
+
+    by Wizzup?, WT-Fakawi, Starblaster100, N1ke! & Coh3n
+    Last Modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function setChat(state: string; chat: Integer): Boolean;
+var
+  pnt      : TPoint;
+  tmpCol   : TColEx;
+  mx,Color : Integer;
+begin
+  result := false;
+  mx := 166 + (chat * 65); // adjust for use w/o game (has no options in OSRS)
+
+  if (not InRange(chat, CHAT_PUBLIC, CHAT_TRADE)) then
+  begin
+    warn('Chat(' + intToStr(chat) + ') does not exist.', WT_CORE);
+    Exit;
+  end;
+
+  // No longer any 'all' or 'filter'
+  case Lowercase(State) of
+    'on'      : Color := 65280;
+    'off'     : Color := 255;
+    'hide'    : Color := 16776960;
+    'friends' : Color := 65535;
+    else
+      warn(state + ' does not exist.', WT_CORE);
+  end;
+
+  // slightly adjust new coordinates
+  tmpCol.create(Color, 1);
+  if (not tmpCol.findIn(toBox(mx-10,490,mx+10,500), pnt)) then
+  begin
+    mouse(point(mx,495), 5, 5, MOUSE_RIGHT);
+    Wait(RandomRange(50, 150));
+
+    if (Lowercase(State) = 'off') then
+    begin
+      case chat of
+        CHAT_PUBLIC : mouse(Point(mx,496-33), 8, 3, MOUSE_LEFT);
+        CHAT_PRIVATE..CHAT_TRADE : mouse(Point(mx,496-20), 8, 3, MOUSE_LEFT);
+      end;
+
+      Wait(RandomRange(50, 150));
+      tmpCol.create(Color, 1);
+      Result := tmpCol.findIn(toBox(mx-10,490,mx+10,500), pnt);
+    end else
+      Result := waitOption(Capitalize(State), 300);
+  end;
+end;
+
+(*
+SetAllChats
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure setAllChats(Pub, Priv, Clan, Trade: string);
+
+Sets all the chats to a particular state in one simple procedure.
+Leave the parameter as '' if you wish to leave the chat as it is.
+
+.. note::
+
+    by ZephyrsFury
+    Last Modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    setAlChats('Hide', '', 'Off', '');
+
+*)
+procedure setAllChats(Pub, Priv, Clan, Trade: string);
+var
+  States: TStringArray;
+  II: Integer;
+begin
+  if not isLoggedIn() then Exit;
+  States := [Pub, Priv, Clan, Trade];
+  for II := 0 to 3 do
+  begin
+    if (States[II] = '') then Continue;
+    setChat(States[II], II);
+  end
+end;
+
+(*
+ChatsOff
+~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure chatsOff();
+
+
+Sets all Chats to off.
+
+.. note::
+
+    by Starblaster100
+    Last Modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+procedure chatsOff();
+var
+  i: Integer;
+begin
+  for i := CHAT_PUBLIC to CHAT_TRADE do
+    setChat('off', i);
+end;
+
+(*
+ClickContinueEx
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function clickContinueEx(Click, Wait: Boolean): Boolean;
+
+
+Returns true if the blue 'Click To Continue' text in the chat box is found.
+If will click if Click = True.
+
+.. note::
+
+    by _ChArMz & Narcle (Original by EvilChicken!)
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function clickContinueEx(Click: Boolean): Boolean;
+var
+  b                  : TBox;
+  pnt                : TPoint;
+  tmpCol             : TColEx;
+  Height,i           : Integer;
+  bTxt,wTxt,TextTPA,
+  SearchTPA,Matches  : TPointArray;
+  Search2D           : T2DPointArray;
+begin
+  Result := false;
+
+  // only 1 blue color in chat.
+  tmpCol.create(16711680, 10);
+  tmpCol.findAllIn(AREA_CB, bTxt);
+  tmpCol.create(16777215, 30);
+  tmpCol.findAllIn(AREA_CB, wTxt);
+
+  SearchTPA := combineTPA(bTxt, wTxt);
+  if length(SearchTPA) < 1 then
+    Exit(false);
+
+  Search2D := clusterTPAEx(SearchTPA, 20, 2);
+
+  // TO DO: figure out proper Text name (CharsNPC07).. then call will work.
+  TextTPA := loadTextTPA('here to conti', CharsNPC07, Height);
+
+  for i := 0 to High(Search2D) do
+  begin
+    Result := findTextTPAinTPA(Height, TextTPA, Search2D[i], Matches);
+    if Result and Click then
+    begin
+      b := Search2D[i].getBounds();
+      pnt := getMousePnt();
+      if pointInBox(pnt, b) then
+        Mouse(pnt, 2, 1, MOUSE_LEFT)
+      else
+        with b do
+          Mouse(point(RandomRange(x1,x2), RandomRange(y1+2,y2-2)), 2, 1, MOUSE_LEFT);
+    end;
+    if Result then
+      Break;
+  end;
+end;
+
+function waitChatChange(): Boolean;
+var
+  T    : Timer;
+  bCol : TColEx;
+  C    : Integer;
+begin
+  bCol.create(0,1);
+  C := bCol.count(AREA_CB);
+  T.start();
+  while T.timeElapsed() < 5000 do
+    if (bCol.count(AREA_CB) <> C) then
+      Exit(true);
+end;
+
+Function clickContinue(DoWait: Boolean): Boolean;
+begin
+  result := clickContinueEx(True);
+
+  if DoWait then
+    result := waitChatChange();
+end;
+
+(*
+ClickToContinue
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function clickToContinue(): Boolean;
+
+Click the blue 'Click To Continue' text in the chat box.
+
+.. note::
+
+    by ZephyrsFury
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function clickToContinue(): Boolean;
+begin
+  Result := clickContinue(False);
+end;
+
+// Continue chat via the space bar
+function continueChat(Wait: Boolean = True): Boolean;
+var
+  tmpCol             : TColEx;
+  Height,i           : Integer;
+  bTxt,wTxt,TextTPA,
+  SearchTPA,Matches  : TPointArray;
+  Search2D           : T2DPointArray;
+begin
+  Result := false;
+
+  // only 1 blue color in chat.
+  tmpCol.create(16711680, 10);
+  tmpCol.findAllIn(AREA_CB, bTxt);
+  tmpCol.create(16777215, 30);
+  tmpCol.findAllIn(AREA_CB, wTxt);
+
+  SearchTPA := combineTPA(bTxt, wTxt);
+  if length(SearchTPA) < 1 then
+    Exit(false);
+
+  Search2D := clusterTPAEx(SearchTPA, 20, 2);
+
+  // TO DO: figure out proper Text name (CharsNPC07).. then call will work.
+  TextTPA := loadTextTPA('here to conti', CharsNPC07, Height);
+
+  for i := 0 to High(Search2D) do
+    if findTextTPAinTPA(Height, TextTPA, Search2D[i], Matches) then
+    begin
+      TypeByte(vk_Space);
+      if Wait then
+        waitChatChange();
+      result := True;
+      Break;
+    end;
+end;
+
+(*
+GetTextCoords
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function getTextCoords(textn: Integer): TPoint;
+
+Returns x, y for text. (1 to 8)
+
+.. note::
+
+    by Wizzup?
+    Last modified: 23/1/14 by Flight
+
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getTextCoords(textn: Integer): TPoint;
+begin
+  Result.X := 15;
+  Result.Y := 346 + (14 * (textn - 1));
+end;
+
+(*
+GetChatBoxText
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getChatBoxText(Line, TextCol: Integer): string;
+
+Gets text on the line Line with colour TextCol.
+(Line 1 is the top, Line 8 is the bottom line).
+Colours:
+
+    - clMessage/clBlack - Black text messages ("Oh Dear you are dead", etc).
+    - clChat/clBlue     - Chat messages from you and other players.
+    - clTrade/clPurple  - Colour of trade request text.
+    - clFriend          - Colour of friend and clan chat.
+
+Works with other colours too.
+
+
+.. note::
+
+    by ZephyrsFury
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function getChatBoxText(Line, TextCol: Integer): string;
+var
+  P    : TPoint;
+begin
+  Result := '';
+  P := getTextCoords(Line);
+  result := Trim(getTextAtEx(MCX1,P.y,MCX2,P.y+13, 0, 5, 4, TextCol, 0, SmallChars07));
+end;
+
+(*
+FindChatBoxText
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function findChatBoxText(Text: string; Line: Integer; TextCol: Integer): Boolean;
+
+Searches for Text on Line with colour TextCol. True if found.
+
+.. note::
+
+    by ZephyrsFury
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+
+
+*)
+function findChatBoxText(Text: string; Line: Integer; TextCol: Integer): Boolean;
+begin
+  Result := (Pos(Text, getChatBoxText(Line, TextCol)) > 0);
+end;
+
+(*
+IsChatBoxTextBetween
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function isChatBoxTextBetween(Text: string; TextCol, StartLine, EndLine: Integer): Boolean;
+
+Returns true if Text with colour TextCol is found anywhere in the chat box.
+
+
+.. note::
+
+    by ZephyrsFury
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function isChatBoxTextBetween(Text: string; TextCol, StartLine, EndLine: Integer): Boolean;
+var
+  II: Integer;
+begin
+  for II := Max(StartLine, EndLine) downto Min(StartLine, EndLine) do
+    if (findChatBoxText(Text, II, TextCol)) then
+      Exit(True);
+  Result := False;
+end;
+
+(*
+IsChatBoxTextAnyLine
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function isChatBoxTextAnyLine(Text: string; TextCol: Integer): Boolean;
+
+Returns true if Text with colour TextCol is found anywhere in the chat box.
+
+
+.. note::
+
+    by ZephyrsFury
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function isChatBoxTextAnyLine(Text: string; TextCol: Integer): Boolean;
+begin
+  Result := isChatBoxTextBetween(Text, TextCol, 1, 8);
+end;
+
+function isChatBoxTextAnyLineEx(Text: TStringArray; TextCol: Integer): Boolean;
+var
+  i : Integer;
+begin
+  result := false;
+  for i:=0 to high(Text) do
+    if isChatBoxTextBetween(Text[i], TextCol, 1, 8) then
+      Exit(true);
+end;
+
+// The three below functions used mostly for private servers
+function getGameMessage(Line: Integer): string;
+var
+  b1    : TBox;
+  P    : TPoint;
+  bCol,
+  cCol : TColEx;
+  cArr,cArr2 : TPointArray;
+begin
+  Result := '';
+  P := getTextCoords(Line);
+  bCol.create(0, 0);
+  cCol.create(16711680, 0);  // Blue name in a yell message
+  if bCol.findAllIn(toBox(MCX1,P.y,MCX2,P.y+13), cArr) then
+    if not cCol.findAllIn(toBox(MCX1,P.y,MCX2,P.y+13), cArr2) then
+    begin
+      b1 := cArr.getBounds();
+      result := Trim(getTextAtExWrap(b1.x1-1,p.y,b1.x2+1,p.y+13,0,5,2,0,0,SmallChars07));
+    end;
+end;
+
+function findGameMessage(Text: string; Line: Integer): Boolean;
+begin
+  result := (Pos(Text, getGameMessage(Line)) > 0);
+end;
+
+function findGameMessageAnyLine(Text: string): Boolean;
+var
+  II: Integer;
+begin
+  for II := 8 downto 1 do
+    if (Pos(Text, getGameMessage(II)) > 0) then
+      Exit(True);
+  Result := False;
+end;
+
+(*
+ChatBoxTextArray
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function chatBoxTextArray(TextCol: Integer): TStringArray;
+
+ Gets and return a TStringArray with the contents of each line
+ with the colour TextCol (see GetChatBoxText for list of colours).
+
+ Gets and return a TStringArray with the contents of each line
+ with the colour TextCol (see GetChatBoxText for list of colours).
+    - Line 1 is Result[1]
+    - Line 2 is Result[2]
+    - Line 3 is Result[3]
+    - Line 4 is Result[4]
+    - Line 5 is Result[5]
+    - Line 6 is Result[6]
+    - Line 7 is Result[7]
+    - Line 8 is Result[8]
+
+.. note::
+
+    by ZephyrsFury
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function chatBoxTextArray(TextCol: Integer): TStringArray;
+var
+  II: Integer;
+begin
+  SetLength(Result, 9);
+  for II := 8 downto 1 do
+    Result[II] := getChatBoxText(II, TextCol);
+end;
+
+(*
+GetBlackChatMessage
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getBlackChatMessage: String;
+
+Gets text with color 0 in last chat line.
+
+.. note::
+
+    by Wizzup?
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getBlackChatMessage(): string;
+begin
+  Result := getChatBoxText(8, clBlack);
+end;
+
+(*
+FindBlackChatMessage
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function findBlackChatMessage(ChatMsg: String): Boolean;
+
+Returns True if text with color 0 in last chat line is found.
+
+.. note::
+
+    by Wizzup?
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function findBlackChatMessage(ChatMsg: string): Boolean;
+begin
+  Result := (Pos(ChatMsg, getChatBoxText(8, clBlack)) > 0);
+end;
+
+function findBlackChatMessages(ChatMsgs: TStringArray): Boolean;
+var
+  i : Integer;
+begin
+  result := false;
+  for i:=0 to high(ChatMsgs) do
+    if (Pos(ChatMsgs[i], getChatBoxText(8, clBlack)) > 0) then Exit(true);
+end;
+
+function findPurpleChatIn(ChatMsg: string; Line: Integer): Boolean;
+begin
+  Result := (Pos(ChatMsg, getChatBoxText(Line, 16711807)) > 0);
+end;
+
+function findPurpleChatMessage(ChatMsg: string): Boolean;
+begin
+  Result := findPurpleChatIn(ChatMsg, 8);
+end;
+
+(*
+LastChatter
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function lastChatter(var name: String): Boolean;
+
+Returns name and true if a person was talking, or false and the text
+
+.. note::
+
+    by masquerader
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function lastChatter(var name: string): Boolean;
+begin
+  Result := False;
+  Name   := getChatBoxText(8, 0);
+  if length(Name) < 1 then Exit;
+  Name   := Between(Name[1], ':', Name);
+  Result := (Name <> '');
+end;
+
+function findChatterInLines(Lines: TIntegerArray; var Name, Text: String): Boolean;
+var
+  i:Integer;
+  nam:String;
+begin
+  for i:=0 to high(Lines) do
+  begin
+    if not inRange(Lines[i], 1, 8) then continue;
+    nam := getChatBoxText(Lines[i], 0);
+    if length(nam) < 1 then Exit;
+    Name := Between(nam[1], ':', nam);
+    if length(Name) < 5 then Exit;
+    if (Name <> '') then
+    begin
+      Text := getChatBoxText(Lines[i], 16711680);
+      exit(true);
+    end;
+  end;
+end;
+
+function findMSChat(): Boolean;
+var
+  Pnt : TPoint;
+  yTxt : TMSObject;
+begin
+  yTxt.create('MSChat', [''], [createCol(0, 0)], [createCol(65535, 0)]);
+  result := yTxt.find(2, MSCP, Pnt);
+end;
+
+(*
+GetLastChatText
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getLastChatText(var chat: String): Boolean;
+
+Returns true if blue chat text was found
+
+.. note::
+
+    by masquerader / Wizzup?
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function getLastChatText(var chat: string): Boolean;
+begin
+  Chat := getChatBoxText(8, clBlue);
+  Result := (Chat <> '');
+end;
+
+function getChatTextLines(Lines:TIntegerArray; var chat: string): Boolean;
+var
+  i : Integer;
+begin
+  for i:=high(Lines) downto 1 do
+  begin
+    if not inRange(Lines[i], 1, 8) then continue;
+    Chat := getChatBoxText(Lines[i], clBlue);
+    if (Chat <> '') then exit(true);
+  end;
+end;
+
+(*
+InChat
+~~~~~~
+
+.. code-block:: pascal
+
+    function inChat(Text: String): Boolean;
+
+Grabs Last Chat Line and performs checks on occurence of text
+
+
+.. note::
+
+    by WT-Fakawi
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+function inChat(Text: string): Boolean;
+var
+  s: string;
+begin
+  if (not (getLastChatText(s))) then
+    lastChatter(s);
+
+  Result := (Pos(LowerCase(Text), Lowercase(s)) > 0);
+end;
+
+(*
+FixChat
+~~~~~~~
+
+.. code-block:: pascal
+
+    procedure fixChat();
+
+Scrolls ChatText scrollbar down.
+
+.. note::
+
+    by WT-Fakawi
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+
+*)
+procedure fixChat();
+var
+  ScrollX, ScrollY: Integer;
+begin
+  ScrollX := 507 + Random(8);
+  ScrollY := 451 + Random(8);
+  if (getColor(502, 442) = 1646629) then
+  begin
+    mouse(point(ScrollX,ScrollY), 0, 0, MOUSE_MOVE);
+    HoldMouse(ScrollX, ScrollY, MOUSE_LEFT);
+    while (getColor(502, 442) = 1646629)  do
+      Wait(10 + random(15));
+	  Wait(50+random(50));
+    releaseMouse(ScrollX, ScrollY, mouse_left);
+    Wait(100+random(50));
+  end;
+end;
+
+(*
+GetNPCChatName
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getNPCChatName(): string;
+
+Gets the name of the random event NPC from the top of the chat box.  The proper
+font doesn't exist yet, so it returns a random string of characters.
+
+.. note::
+
+    Author: DemiseSythe
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    writeln(getNPCChatName());
+*)
+function getNPCChatName(): string;
+begin
+  result := getTextAtExWrap(116, 358, 498, 377, 0, 50, 60, 128, 15, CharsNPC07);
+end;
+
+(*
+AreTalking
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function areTalking(): boolean;
+
+Returns true if player is talking to an NPC.
+
+.. note::
+
+    Author: Wizzup?
+    Last modified: 23/1/14 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    while (areTalking()) do
+      clickContinue(true);
+*)
+function areTalking(): boolean;
+begin
+  result := (getNPCChatName() <> '');
+end;
+
+function chatOptionScreen(): Boolean;
+var
+  pnt       : TPoint;
+  colO,colB : TColEx;
+begin
+  colO.create(128, 10);
+  colB.create(6383633, 25);
+
+  if not colB.findIn(toBox(MCX1,MCY1,MCX2,390), pnt) then
+    Exit(False);
+
+  result := colO.findIn(toBox(MCX1,MCY1,MCX2,390), pnt);
+end;
+
+function getChatOptions(): Array of TChatOption;
+var
+  B        : TBox;
+  pnt      : TPoint;
+  bCol,wCol: TColEx;
+  i        : Integer;
+  bPnts,
+  wPnts    : TPointArray;
+  bAP,wAP,
+  tmpatpa  : T2DPointArray;
+begin
+  if not chatOptionScreen() then Exit;
+
+  bCol.create(0, 1);
+  wCol.create(16777215, 15);
+  bCol.findAllIn(toBox(MCX1,379,MCX2,470), bPnts);
+  wCol.findAllIn(toBox(MCX1,379,MCX2,470), wPnts);
+
+  if ((length(bPnts) < 1) and (length(wPnts) < 1)) then Exit;
+
+  bAP := clusterTPAEx(bPnts, 20, 2);
+  setArrayLength(Result, Length(bAP));
+  wAP := clusterTPAEx(wPnts, 20, 2);
+  bPnts := [];
+  wPnts := [];
+
+  sortATPAFromFirstPointX(bAP, Point(0,0));
+  for i:=0 to high(bAP) do
+  begin
+    B := bAP[i].getBounds();
+    bCol.findAllIn(B, bPnts);
+    tmpatpa := clusterTPAEx(bPnts, 1, 10);
+    sortATPAFromFirstPointX(tmpatpa, Point(0,0));
+    result[i].Bounds := B;
+    result[i].Str    := getTextAtEx(B.X1, B.Y1, B.X2, B.Y2, 0, 5, 1, 0, 0, 'CharsNPC07');
+  end;
+
+  if length(wAP) < 1 then Exit;
+  setArrayLength(Result, (Length(result)+Length(wAP)));
+  sortATPAFromFirstPointX(wAP, Point(0,0));
+  for i:=0 to high(wAP) do
+  begin
+    B := wAP[i].getBounds();
+    wCol.findAllIn(B, wPnts);
+    tmpatpa := clusterTPAEx(wPnts, 1, 10);
+    sortATPAFromFirstPointX(tmpatpa, Point(0,0));
+    result[High(result)].Bounds := B;
+    result[High(result)].Str    := getTextATPA(tmpatpa, 5, 'CharsNPC07');
+  end;
+end;
+
+function findChatOptions(Text: TStringArray; Click, DoWait: Boolean): boolean;
+var
+  T      : Timer;
+  pnt    : TPoint;
+  tmpCol : TColEx;
+  h,i    : Integer;
+  Opts   : Array of TChatOption;
+begin
+  if not isLoggedIn() then Exit;
+  Opts := getChatOptions();
+  if (length(Opts) < 1) then Exit;
+
+  for h:=0 to high(Text) do
+    for i:=0 to high(Opts) do
+      if (Pos(Text[h], Opts[i].Str) <> 0) then
+      begin
+        if not Click then
+          Exit(true);
+
+        mouseBox(Opts[i].Bounds, MOUSE_LEFT);
+        if DoWait then
+        begin
+          tmpCol.create(6383633, 30);
+          T.start();
+          repeat
+            if not tmpCol.findIn(toBox(410,365,417,372), pnt) then
+              break;
+          until(T.timeElapsed() < 5000);
+        end;
+        Exit(true);
+      end;
+end;
+
+function findChatOption(Text: string; Click: Boolean): boolean;
+begin
+  result := findChatOptions([Text], Click, True);
+end;
+
+(*
+DoConversationEx
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function doConversationEx(resultText: TStringArray; clickresult: boolean): boolean;
+
+Goes through the initial dialog of a random.  Will keep clicking to continue
+until any of the conversation's 'resultText' is found.  Will click to continue when
+any 'resultText' is found if 'clickresult' is set to true.  Set 'resultText' to ['']
+to click continue until conversation is over.
+
+.. note::
+
+    Author: Coh3n, Flight
+    Last Modified: Jun. 15th, 2013 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    if (DoConversationEx(['thank','nk you'], true)) then
+      writeln('Finished conversation');
+*)
+function doConversationEx(resultText: TStringArray; ClickResult: Boolean): boolean;
+var
+  t,i: integer;
+begin
+  while (t < 25) do
+  begin
+    if length(resultText) > 0 then
+    begin
+      if ClickResult then
+      begin
+        if findChatOptions(resultText, ClickResult, True) then
+          Exit(true);
+      end else
+      begin
+        if (findChatOption(resultText[i], False)) then
+          Exit(true);
+      end;
+    end;
+    if not continueChat() then
+      exit;
+    wait(100 + random(200));
+    inc(t);
+  end;
+end;
+
+function doConversation(resultText: TStringArray): boolean;
+var
+  T : Timer;
+begin
+  Result := false;
+  T.start();
+  repeat
+    findChatOptions(resultText, True, True);
+    continueChat();
+    if not areTalking() then
+      break;
+  until(T.timeElapsed() > 8000);
+  result := not areTalking();
+end;
+

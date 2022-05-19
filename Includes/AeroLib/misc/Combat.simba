@@ -1,0 +1,82 @@
+{
+======
+Combat
+======
+}
+
+function getHPBars(): TPointArray;
+var
+  B,B2 : TBox;
+  colG : TColEx;
+  i    : Integer;
+  tpa  : TPointArray;
+  atpa : T2DPointArray;
+begin
+  if not isLoggedIn() then Exit;
+
+  colG.create(65280, 1);
+  if colG.findAllIn(AREA_MS, tpa) then
+  begin
+    atpa := clusterTPA(tpa, 1);
+    for i:=0 to high(atpa) do
+    begin
+      B  := atpa[i].getBounds();
+      B2 := toBox(B.X1,B.Y1,B.X1+29,B.Y2);
+      if inRange(B2.Height, 4, 12) then
+      begin
+        setArrayLength(Result, Length(Result)+1);
+        Result[High(Result)] := B2.MidPoint;
+      end;
+    end;
+  end;
+end;
+
+function getDeadHPBars(): TPointArray;
+var
+  B,B2  : TBox;
+  colG,
+  colR  : TColEx;
+  i     : Integer;
+  tpa   : TPointArray;
+  atpa  : T2DPointArray;
+begin
+  if not isLoggedIn() then Exit;
+
+  colG.create(65280, 1);
+  colR.create(255, 1);
+
+  if colR.findAllIn(AREA_MS, tpa) then
+  begin
+    atpa := clusterTPA(tpa, 1);
+    for i:=0 to high(atpa) do
+    begin
+      B  := atpa[i].getBounds();
+      B2 := toBox(B.X1-29,B.Y1,B.X1,B.Y2);
+      if inRange(B2.Height, 4, 6) then
+        if not colG.findAllIn(B2, tpa) then
+        begin
+          setArrayLength(Result, Length(Result)+1);
+          Result[High(Result)] := B.MidPoint;
+        end;
+    end;
+  end;
+end;
+
+function foundHPBarIn(Area: TBox): Boolean;
+var
+  i     : Integer;
+  B1,B2,
+  Bars  : TPointArray;
+begin
+  if not isLoggedIn() then Exit(false);
+
+  B1 := getHPBars();
+  B2 := getDeadHPBars();
+  combineTPAWrap(B1, B2, Bars);
+  if length(Bars) < 1 then
+    exit(false);
+
+  for i:=0 to high(Bars) do
+    if pointInBox(Bars[i], Area) then
+      Exit(true);
+end;

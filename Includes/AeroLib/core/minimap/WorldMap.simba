@@ -1,0 +1,12 @@
+{
+========
+WorldMap
+========
+}
+
+function openWorldMap();
+var
+  T : Timer;
+begin
+  mouseCircle(727,142,8,MOUSE_LEFT);
+end;

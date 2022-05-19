@@ -1,0 +1,711 @@
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
+ All rights reserved.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+{$include_once Base.pas}
+
+const
+  RSW_MaxWalkDist = 60;
+  RSW_Path = AL_INCPATH + '/maps/';
+  RSW_Extension = '.png';
+  W_FOUND = 1;
+  W_FINISHED = 2;
+  W_FAILED = 3;
+
+type
+  EWalkStyle    = (wsRegular, wsSPS);
+  TOnWalkEvent  = procedure(sender:TObject; myPos: TPoint; out keepGoing: Boolean);
+  TOnClickEvent = function(sender:TObject; var box: TBox): Boolean;
+  TWhileWalkingEvent = procedure(sender:TObject; myPos: TPoint);
+
+  TRSWalker = record
+    worldMap, worldSample: T2DIntArray;
+    walkStyle: EWalkStyle;
+    skipClose: Int32;
+    clickTYpe: String;
+    anyAngle: Boolean;
+    minRunEnergy: Int32;
+    minMatch: Single;
+    
+    finder: TRSPosFinder;
+    memScanEnabled: Boolean;
+    localMap: T2DIntArray;
+    global:TPoint;
+    
+    onClickEvent:TOnClickEvent;
+    onWalkEvent: TOnWalkEvent;
+    onMoveEvent: TWhileWalkingEvent;
+  end;
+
+
+{$IFNDEF CodeInsight}
+procedure TRSWalker.SetDefaultValues();
+begin
+  onClickEvent := nil;
+  onWalkEvent  := nil;
+  onMoveEvent  := nil;
+
+  minMatch    := -1;
+  skipClose   := 10;
+  minRunEnergy:= 20;
+  anyAngle    := False;
+  walkStyle   := wsRegular;
+  clickType   := 'MM';
+  
+  memScanEnabled := True;
+end;
+
+
+function TRSWalker.TryGetClientID(): UInt32;
+begin
+  {$IFDEF SMART}
+    Result := OS_SMART.ID;
+  {$ELSE}
+    Result := w_GetClientPID();
+  {$ENDIF}
+end;
+{$ENDIF}
+
+
+procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=8);
+var
+  BMP:Integer;
+  function FindMapPath(path:String): String;
+  var testPath:String;
+  begin
+    result := path;
+    if not FileExists(result) then
+    begin
+      testPath := RSW_Path+result+RSW_Extension;
+      if (not FileExists(testPath)) then
+        RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
+      Result := testPath;
+    end;
+  end;
+  
+begin
+  with self do
+  begin
+    if (PID = 0) then PID := self.TryGetClientID();
+    finder.Init(PID);
+    finder.scanRatio := AScanRatio;
+
+    self.SetDefaultValues();
+    
+    BMP := LoadBitmap(FindMapPath(world));
+    setBitmapName(BMP, 'TRSWalker map BMP');
+    worldMap := BitmapToMatrix(BMP);
+    FreeBitmap(BMP);
+
+    worldSample := w_imSample(worldMap, finder.scanRatio);
+  end;
+end;
+
+
+procedure TRSWalker.Free();
+begin
+  finder.Free();
+  setLength(worldMap, 0);
+  setLength(worldSample, 0);
+  setLength(localMap, 0);
+end;
+
+{---| IF MEMSCAN |---]
+  Changes the state of MemScan (use, or not use)
+}
+function TRSWalker.ToggleMemScan(): Boolean;
+begin
+  memScanEnabled := not memScanEnabled;
+  Result := memScanEnabled and (finder.process > 0); 
+end;
+
+
+{---| IF MEMSCAN |---]
+  Locates the current minimap  in the world map
+}
+function TRSWalker.FindChunk(pt:TPoint; area:Int32=100): TPoint;
+var
+  loc,locSample:T2DIntArray;
+  corr:T2DFloatArray;
+  B:TBox;
+  shift:TPoint;
+begin
+  B := [pt.x-area, pt.y-area, pt.x+area, pt.y+area];
+  B := [max(52,B.x1),max(52,B.y1),min(459,B.x2),min(459,B.y2)];
+  loc := w_getArea(self.localMap, b.x1,b.y1,b.x2,b.y2);
+  locSample := w_imSample(loc, finder.scanRatio);
+  shift := Point(pt.x-B.x1, pt.y-B.y1);
+
+  corr   := LibCV.MatchTemplate(worldSample, locSample, finder.matchAlgo);
+  Result := w_ArgMax(corr);
+  Result := finder.findPeakAround(
+    worldMap,
+    loc,
+    Point(Result.x*finder.scanRatio, result.y*finder.scanRatio),
+    20
+  );
+
+  Result.x := (Result.x + shift.x) - pt.x;
+  Result.y := (Result.y + shift.y) - pt.y;
+end;
+
+{---| IF MEMSCAN |---]
+  Updates the position of the current minimap-chuck
+  This function is only called when the minimap loads a new chunk
+}
+procedure TRSWalker.UpdateGlobalStart(localPt:TPoint);
+var sim:Double;
+begin
+  if length(self.localMap) = length(finder.localMap) then
+    sim := w_imCompareAt(finder.localMap, self.localMap, Point(0,0), 1);
+  if sim < 1 then
+  begin
+    self.localMap := finder.localMap;
+    self.Global := self.FindChunk(localPt);
+  end;
+end;
+
+{---| IF MEMSCAN |---]
+  Returns the current position of our character when using memscan
+  - For normal usage use TRSWalker.GetMyPos 
+}
+function TRSWalker._GetPos(): TPoint;
+var
+  localPt:TPoint;
+begin
+  localPt := finder.GetLocalPos(self.anyAngle);
+  self.UpdateGlobalStart(localPt);
+  Result.x := localPt.x + self.global.x;
+  Result.y := localPt.y + self.global.y;
+end;
+
+{
+  Returns the current position of our character when NOT using memscan
+  - For normal usage use TRSWalker.GetMyPos 
+}
+function TRSWalker._GetPosCustom(): TPoint;
+var
+  feat: T2DFeatPointArray;
+  BMP: Integer;
+  MM,test: T2DIntArray;
+  best: TFeaturePoint;
+  compRad: Double = 0;
+begin
+  if self.anyAngle then
+    compRad := w_GetCompassAngle(False);
+
+  BMP := BitmapFromClient(WMM_OUTER.x1,WMM_OUTER.y1,WMM_OUTER.x2,WMM_OUTER.y2);
+  setBitmapName(BMP, 'TRSWalker raw MM');
+  MM := BitmapToMatrix(BMP);
+  FreeBitmap(BMP);
+
+  feat := finder.Correlate(MM, self.worldSample, compRad);
+  best := finder.FindPeak(feat);
+
+  //find local peak:
+  test := w_imRotate(MM, radians(best.angle) + compRad, False,True);
+  test := w_getArea(test, WMM_INNER.x1,WMM_INNER.y1,WMM_INNER.x2,WMM_INNER.y2);
+  Result := finder.FindPeakAround(
+    self.worldMap,
+    test,
+    Point(best.x,best.y),
+    20
+  );
+
+  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + 1;
+  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + 1;
+  finder.topMatch := best.value;
+  finder.mmOffset := best.angle;
+end;
+
+
+(*
+ Returns our characters current position. 
+ @note:
+   If `ignoreMatchValue` is False it will return (-1,-1) when it's a bad match.
+   This also requires you to set TRSWalker.minMatch 
+*)
+function TRSWalker.GetMyPos(ignoreMatchValue:Boolean = True): TPoint;
+begin
+  if (finder.process > 0) and (self.memScanEnabled) then
+    Result := self._getPos()
+  else
+    Result := self._getPosCustom();
+  
+  if not(ignoreMatchValue) and (self.minMatch > self.finder.topMatch) then
+    Exit(Point(-1,-1));
+end;
+
+
+(*
+ Outputs a point on the minimap position from current pos to `pt`
+ Returns True if it's within the minimap area
+*)
+function TRSWalker.PointToMM(myPos, pt: TPoint; out mmPos:TPoint): Boolean;
+begin
+  Result := False;
+  if (w_Distance(myPos, pt) < WMM_RAD) then
+  begin
+    mmPos.x := (pt.x - myPos.x);
+    mmPos.y := (pt.y - myPos.y);
+    mmPos   := RotatePoint(mmPos, radians(finder.mmOffset), 0,0);
+    mmPos.x += WMM_CX;
+    mmPos.y += WMM_CY;
+    Result := True;
+  end;
+end;
+
+(*
+  Takes the position we are walking to in both it's forms:
+  - mmPt (position on minimap)
+  - worldPt (position in the world)
+  Expects lookup to be fast, if this shows to not be the case, it's better to
+  replace ``Distance(Self.GetPos(), worldPt)`` with distnace-check to the flag.
+*)
+function TRSWalker.WalkToPos(mmPt, worldPt:TPoint; doRand:Boolean=False): Boolean;
+var
+  t:Timer;
+  r:UInt32;
+  pos,msPt:TPoint;
+  tpa:TPointArray;
+begin
+  if self.anyAngle then
+    mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  
+  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= WMM_RAD-5) and doRand then r := 5;
+
+  if self.clickType = 'MM' then
+  begin
+    if RBoolEx(2) then
+    begin
+      tpa := TPABetweenPoints(getMousePnt(), mmPt, 6, r);
+      sortTPAFrom(tpa, mmPt);
+      missMouse(tpa[0], 2, 2);
+      fastClick(MOUSE_LEFT);
+      wait(randomRange(40,115));
+    end;
+
+    missMouse(mmPt, r, r);
+    fastClick(MOUSE_LEFT);
+
+    if (not RBoolEx(4)) then
+      humanRandomMouse(10);
+  end else if self.clickTYpe = 'MS' then
+  begin
+    msPt := MMtoMS(mmPt);
+    if not pointInBox(msPt, AREA_MS) then exit(false);
+
+    missMouse(msPt, 7, 7);
+    if waitUpTextMulti(['Walk','lk here'], 150) then
+    begin
+      fastClick(MOUSE_LEFT);
+      if not didYellowClick() then exit(false);
+    end else
+    begin
+      fastClick(MOUSE_RIGHT);
+      if not waitOptionMulti(['Walk','lk here'], 150) then exit(false);
+    end;
+  end;
+
+  if waitFunc(@flagPresent, 70, 1400) then
+    if waitFunc(@isPlayerWalking, 70, 2700+random(400)) then
+    begin
+      t.start();
+      repeat
+        if (getRunEnergy() >= self.minRunEnergy) then
+          toggleRunning(true);
+
+        pos := self.GetMyPos();
+        if pointsInDist(pos, worldPt, self.skipClose) then
+          exit(true)
+        else
+          if (not RBoolEx(4)) then
+            humanRandomMouse(10)
+          else
+            wait(70);
+      until (not isPlayerWalking()) or (t.timeElapsed > 20000);
+
+      result := True;
+    end;
+end;
+
+
+(*
+  Simple method to do 1 step on the minimap.
+*)
+procedure TRSWalker.WalkToPos(worldPos:TPoint; waitFlag:Boolean=True); overload;
+var
+  t:Timer;
+  mmPt,msPt:TPoint;
+  tpa:TPointArray;
+begin
+  if not Self.PointToMM(self.GetMyPos(), worldPos, mmPt) then
+    Exit();
+
+  if self.anyAngle then
+    mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+
+  if self.clickType = 'MM' then
+  begin
+    if RBoolEx(2) then
+    begin
+      tpa := TPABetweenPoints(getMousePnt(), mmPt, 6, 5);
+      sortTPAFrom(tpa, mmPt);
+      missMouse(tpa[0], 2, 2);
+      fastClick(MOUSE_LEFT);
+      wait(randomRange(40,115));
+    end;
+
+    missMouse(mmPt, 2, 2);  // Little randomness
+    fastClick(MOUSE_LEFT);
+
+    if (not RBoolEx(4)) then
+      humanRandomMouse(10);
+  end else if self.clickTYpe = 'MS' then
+  begin
+    msPt := MMtoMS(mmPt);
+    if not pointInBox(msPt, AREA_MS) then exit;
+
+    missMouse(msPt, 7, 7);
+    if waitUpTextMulti(['Walk','lk here'], 150) then
+    begin
+      fastClick(MOUSE_LEFT);
+      if not didYellowClick() then exit;
+    end else
+    begin
+      fastClick(MOUSE_RIGHT);
+      if not waitOption('Walk', 150) then exit;
+    end;
+  end;
+
+  if waitFlag then
+    if waitFunc(@isPlayerWalking, 70, 2700+random(400)) then
+    begin
+      t.start();
+      repeat
+        if (getRunEnergy() >= self.minRunEnergy) then
+          toggleRunning(true);
+        if (not RBoolEx(4)) then
+          humanRandomMouse(10)
+        else
+          wait(70);
+      until not(isPlayerWalking()) or (t.timeElapsed > 20000);
+    end;
+end;
+
+(*
+ 
+*)
+function TRSWalker.WalkPath(Path: TPointArray; finalCorrection:Boolean=False): Boolean;
+var
+  i,prev,h,tmp,attempts:Int32;
+  t:UInt32;
+  mmPt,myPos:TPoint;
+  keepGoing: Boolean;
+  
+  function RandomizeRunEnergy(e:Int32):Int32;
+  begin
+    if e > 100 then Exit();
+    Result := RandomRange(max(15,e-10), min(100,e+10));
+  end;
+  
+begin
+  tmp := self.minRunEnergy;
+  
+  H := High(Path);
+  i := 0;
+  case self.walkStyle of
+    wsRegular://simple walking - can't start mid path.
+      begin
+        t := GetTimeRunning() + 20000 + random(5000);
+        attempts := 0;
+        while (i < H) and (GetTimeRunning() < t)  do
+        begin
+          self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+          myPos := Self.GetMyPos();
+          while (i < H) and (self.PointToMM(myPos, path[i+1], mmPt)) do
+            inc(i);
+
+          if prev = i then begin
+            inc(attempts);
+            if attempts > 5 then Exit(False);
+          end else
+            attempts := 0;
+
+          if self.PointToMM(myPos, path[i], mmPt) then
+          begin
+            if Assigned(@self.onWalkEvent) then 
+            begin
+              self.onWalkEvent(@self, myPos, keepGoing);
+              if not(keepGoing) then
+                Exit(True);
+            end;
+            
+            self.WalkToPos(mmPt, path[i], i<>h);
+            prev := i;
+            t := GetTimeRunning() + 20000 + random(5000);
+          end;
+        end;
+        Result := (i = H);
+      end;
+      
+    wsSPS://mimics the way SPS WalkPath works
+      begin
+        if self.clickType = 'MM' then
+          t := GetTimeRunning() + 20000 + random(5000)
+        else if self.clickType = 'MS' then
+          t := GetTimeRunning() + randomRange(8000,12000);
+        attempts := 0;
+        while (GetTimeRunning() < t) do
+        begin
+          self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+          myPos := Self.GetMyPos();
+          for i:=H downto 0 do
+          begin
+            if not Self.PointToMM(myPos, path[i], mmPt) then
+              Continue;
+            if not self.WalkToPos(mmPt, path[i], i<>H) then
+              Continue;
+
+            if Assigned(@self.onWalkEvent) then 
+            begin
+              self.onWalkEvent(@self, myPos, keepGoing);
+              if not(keepGoing) then
+                Exit(True);
+            end;
+
+            if self.clickType = 'MM' then
+              t := GetTimeRunning() + 20000 + random(5000)
+            else if self.clickType = 'MS' then
+              t := GetTimeRunning() + randomRange(8000,12000);
+
+ 	          Break;
+          end;
+          Result := (i = H);
+          if Result then Break;
+        end;
+      end;
+  end;
+
+  if Result and finalCorrection then
+  begin
+    Wait(random(300,600));
+    Self.PointToMM(Self.GetMyPos(), path[h], mmPt);
+    if w_Distance(Point(WMM_CX,WMM_CY), mmPt) > 10 then
+      self.WalkToPos(mmPt, path[h]);
+  end;
+  
+  self.minRunEnergy := tmp;
+end;
+
+function TRSWalker.blindWalk(P: TPoint): Boolean;
+var
+  myPos : TPoint;
+  pnts  : TPointArray;
+begin
+  if not isLoggedIn() then Exit(false);
+
+  myPos := Self.GetMyPos();
+  if self.clickTYpe = 'MM' then
+    pnts := TPABetweenPoints(myPos, P, 18 + Random(8), 5)
+  else if self.clickTYpe = 'MS' then
+    pnts := TPABetweenPoints(myPos, P, 5 + Random(4), 3);
+
+  sortTPAFrom(pnts, myPos);
+  Result := Self.walkPath(pnts);
+end;
+
+function TRSWalker.walkToPosSearch(mmPt: TPoint; SearchObjs: Array of TMSObject; Options: TStringArray): Integer;
+var
+  t : Timer;
+  msPt : TPoint;
+  j : Integer;
+  tpa:TPointArray;
+begin
+  if self.anyAngle then
+    mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+
+  if self.clickType = 'MM' then
+  begin
+    if RBoolEx(2) then
+    begin
+      tpa := TPABetweenPoints(getMousePnt(), mmPt, 6, 5);
+      sortTPAFrom(tpa, mmPt);
+      missMouse(tpa[0], 2, 2);
+      fastClick(MOUSE_LEFT);
+      wait(randomRange(40,115));
+    end;
+
+    missMouse(mmPt, 4, 4);
+    fastClick(MOUSE_LEFT);
+  end else if self.clickTYpe = 'MS' then
+  begin
+    msPt := MMtoMS(mmPt);
+    if not pointInBox(msPt, AREA_MS) then exit(W_FINISHED); // Borrowing an inaccurate result
+
+    missMouse(msPt, 7, 7);
+    if waitUpTextMulti(['Walk','lk here'], 150) then
+    begin
+      fastClick(MOUSE_LEFT);
+      if not didYellowClick() then exit(W_FINISHED); // Borrowing an inaccurate result
+    end else
+    begin
+      fastClick(MOUSE_RIGHT);
+      if not waitOption('Walk', 150) then exit(W_FINISHED); // Borrowing an inaccurate result
+    end;
+  end;
+
+  if not waitFunc(@isPlayerWalking, 70, 3000) then
+    exit(W_FAILED);
+
+  t.start();
+  repeat
+    if length(SearchObjs) > 0 then
+      for j:=0 to high(SearchObjs) do
+        if SearchObjs[j].find() then
+          if (length(Options) <= 0) then
+          begin
+            fastClick(MOUSE_LEFT);
+            if didRedClick() then
+              Exit(W_FOUND);
+          end else if (length(Options) > 0) then
+          begin
+            fastClick(MOUSE_RIGHT);
+            if waitOptionMulti(Options, 300) then
+              Exit(W_FOUND);
+          end;
+
+    if (getRunEnergy() >= self.minRunEnergy) then
+      toggleRunning(true);
+
+    if flagDistance() < self.skipClose then
+      exit(W_FINISHED);
+    wait(70);
+  until not(flagPresent()) or (t.timeElapsed() > 20000);
+end;
+
+function TRSWalker.walkPathSearch(Path: TPointArray; SearchObjs: Array of TMSObject; Options: TStringArray): Integer;
+var
+  T          : Timer;
+  P,mmPnt,
+  myPos      : TPoint;
+  i,H,prev,j,
+  attempts,F,
+  tmp,tRes   : integer;
+  function RandomizeRunEnergy(e:Int32):Int32;
+  begin
+    if e > 100 then Exit();
+    Result := Random(max(5,e-10), e+10);
+  end;
+begin
+  tmp := self.minRunEnergy;
+  H := High(Path);
+
+  if length(SearchObjs) > 0 then
+    for j:=0 to high(SearchObjs) do
+      if SearchObjs[j].find() then
+        if (length(Options) <= 0) then
+        begin
+          fastClick(MOUSE_LEFT);
+          if didRedClick() then
+            Exit(W_FOUND);
+        end else if (length(Options) > 0) then
+        begin
+          fastClick(MOUSE_RIGHT);
+          if waitOptionMulti(Options, 300) then
+            Exit(W_FOUND);
+        end;
+
+  T.start();
+  while (T.timeElapsed() < (1500 + random(700))) do
+  begin
+    if (Result = W_FOUND) then break;
+    if not isLoggedIn() then Exit;
+    self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+
+    if length(SearchObjs) > 0 then
+      for j:=0 to high(SearchObjs) do
+        if SearchObjs[j].find() then
+          if (length(Options) <= 0) then
+          begin
+            fastClick(MOUSE_LEFT);
+            if didRedClick() then
+              Exit(W_FOUND);
+          end else if (length(Options) > 0) then
+          begin
+            fastClick(MOUSE_RIGHT);
+            if waitOptionMulti(Options, 300) then
+              Exit(W_FOUND);
+          end;
+
+    myPos := Self.GetMyPos();
+    for i:=H downto 0 do
+    begin
+      if not Self.PointToMM(myPos, Path[i], mmPnt) then
+        Continue;
+      if distance(mmPnt.X,mmPnt.Y,MMCX,MMCY) <= 5 then
+        Continue;
+
+      tRes := Self.walkToPosSearch(mmPnt, SearchObjs, Options);
+      if tRes = W_FOUND then
+        Exit(W_FOUND);
+      if tRes = W_FAILED then
+        Exit(W_FAILED);
+      if tRes = W_FINISHED then
+        Continue;
+
+      if prev = i then
+      begin
+        inc(attempts);
+        if attempts > 5 then Exit;
+      end else
+        attempts := 0;
+
+      prev := i;
+      T.start();
+ 	    Break;
+    end;
+
+    if (i = H) then
+    begin
+      while isPlayerWalking() do
+        if length(SearchObjs) > 0 then
+          for j:=0 to high(SearchObjs) do
+            if SearchObjs[j].find() then
+              if (length(Options) <= 0) then
+              begin
+                fastClick(MOUSE_LEFT);
+                if didRedClick() then
+                  Exit(W_FOUND);
+              end else if (length(Options) > 0) then
+              begin
+                fastClick(MOUSE_RIGHT);
+                if waitOptionMulti(Options, 200) then
+                  Exit(W_FOUND);
+              end;
+      exit(W_FINISHED);
+    end;
+  end;
+end;
+
+function TRSWalker.blindWalkSearch(P: TPoint; SearchObjs: Array of TMSObject; Options: TStringArray): Integer;
+var
+  myPos : TPoint;
+  pnts  : TPointArray;
+begin
+  if not isLoggedIn() then Exit;
+
+  myPos := Self.GetMyPos();
+  if self.clickTYpe = 'MM' then
+    pnts := TPABetweenPoints(myPos, P, 18 + Random(8), 5)
+  else if self.clickTYpe = 'MS' then
+    pnts := TPABetweenPoints(myPos, P, 5 + Random(4), 3);
+
+  sortTPAFrom(pnts, myPos);
+  Result := Self.walkPathSearch(pnts, SearchObjs, Options);
+end;
+
+function mapFileExists(MapName: String): Boolean;
+begin
+  result := fileExists(RSW_Path+MapName+RSW_Extension);
+end;

@@ -1,0 +1,49 @@
+{$loadlib liblayer.dll}
+
+Var
+  Layer: TLayer;
+  LayerBMP: TMufasaBitmap;
+
+
+procedure _FreeLayer;
+begin
+  Layer.Free();
+  LayerBMP.Free();
+end;
+
+procedure _InitLayer; //Native;
+begin
+  Layer.Init(PtrUInt(layerBMP));
+end;
+
+procedure setupLayer();
+begin
+  LayerBMP := Pointer(GetNativeWindow()); // Store window handle for now
+  Sync(@_InitLayer); // Must be on simba's mainthread so we receive messages
+  //Sync(_InitLayer); // Must be on simba's mainthread so we receive messages
+
+  LayerBMP.Init(Client.GetMBitmaps());
+  LayerBMP.SetPersistentMemory(PtrUInt(Layer.Data), Layer.Width, Layer.Height);
+  AddOnTerminate('_FreeLayer');
+end;
+
+procedure TMufasaBitmap.clearGraphics();
+begin
+  Self.DrawClear(0);
+end;
+
+procedure TMufasaBitmap.clearArea(Area: TBox);
+begin
+  Self.Rectangle(Area, 0);
+end;
+
+procedure TMufasaBitmap.DrawBox(Box: TBox; Color: TColor = clRed);
+var
+  TPA: TPointArray;
+begin
+  TPA := edgeFromBox(Box);
+  try
+    Self.DrawTPA(TPA, Color);
+  except
+  end;
+end;

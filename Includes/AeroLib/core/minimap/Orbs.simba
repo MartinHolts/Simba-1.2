@@ -1,0 +1,204 @@
+{
+====
+Orbs
+====
+}
+
+
+procedure clickNorth(RightClick: Boolean=False);
+begin
+  mouseBox(toBox(548,7,572,33), MOUSE_MOVE);
+  if RightClick then
+  begin
+    fastClick(MOUSE_RIGHT);
+    chooseOption('Look North');
+  end else
+    fastClick(MOUSE_LEFT);
+end;
+
+function getXPBarAmount(): Integer;
+begin
+  Result := -1;
+  Result := strToIntDef(ExtractFromStr(getTextAtEx(AREA_XPBAR.X1, AREA_XPBAR.Y1, AREA_XPBAR.X2, AREA_XPBAR.Y2, 0, 3, 1, 16777215, 5, 'StatChars07'), Numbers), -1);
+end;
+
+function XPBarOpen(): Boolean;
+begin
+  Result := getXPBarAmount() > -1;
+end;
+
+procedure toggleXPBar(Enable: Boolean; DoWait: Boolean=False);
+var
+  T : Timer;
+begin
+  if Enable then
+    if (not XPBarOpen) then
+      mouseBox(toBox(520,23,540,44), MOUSE_LEFT);
+
+  if (not Enable) then
+    if XPBarOpen then
+      mouseBox(toBox(520,23,540,44), MOUSE_LEFT);
+
+  if DoWait then
+  begin
+    T.Start();
+    while T.timeElapsed() < 4000 do
+    begin
+      if Enable then
+        if XPBarOpen then
+          exit;
+      if (not Enable) then
+        if (not XPBarOpen) then
+          exit;
+    end;
+  end;
+end;
+
+function waitXPBarChange(WaitTime: Integer): Boolean;
+var
+  T : Timer;
+  i : Integer;
+begin
+  i := getXPBarAmount();
+  T.Start();
+
+  while T.timeElapsed() < WaitTime do
+  begin
+    if i <> getXPBarAmount() then
+      exit(True);
+    wait(5 + Random(6));
+  end;
+end;
+
+function getHealthPercent(): Integer;
+var
+  tCol : TColEx;
+  tpa  : TPointArray;
+begin
+  Result := 100;
+  tCol.create(1184274, 13);
+  if not tCol.findPie([541,44,571,72], 0, 360, 0, 15, 556, 58, tpa) then
+    exit;
+  sortTPAByY(tpa, False);
+  result := (((70-tpa[0].y)*4)-2);
+  if result < 0 then result := 0;
+end;
+
+function getPrayerPercent(): Integer;
+var
+  l    : Integer;
+  tCol : TColEx;
+  tpa  : TPointArray;
+begin
+  Result := 100;
+  tCol.create(1184274, 13);
+  tCol.findPie([541,88,571,115], 0, 360, 0, 15, 556, 102, tpa);
+  l := (length(tpa)-10);
+  if l < 0 then l := 0;
+  result := round((100-(l/316)*100));
+end;
+
+function getCurrentHealth(): Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], [522,56,541,69]);
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+function getPrayerPoints(): Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], [526,101,539,112]);
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+function getRunEnergy(): Integer;
+var
+  tpa : TPointArray;
+begin
+  tpa    := returnTPAExceptColors([4938344, 0], [20, 0], [546,136,566,148]);
+  result := strToIntDef(getTextATPA(clusterTPAEx(tpa,1,10), 5, 'StatChars07'), 0);
+end;
+
+function isUsingRun(): Boolean;
+var
+  tCol : TColEx;
+  tpa  : TPointArray;
+begin
+  tCol.create(99749, 20);
+  result := tCol.findPie([571,127,595,152], 0, 360, 0, 72, 582, 140, tpa);
+end;
+
+function isRunEnergyBoosted(): Boolean;
+var
+  tCol : TColEx;
+  tpa  : TPointArray;
+begin
+  tCol.create(4027364, 20);
+  result := tCol.findPie([571,127,595,152], 0, 360, 0, 72, 582, 140, tpa);
+end;
+
+function isPoisoned(): Boolean;
+var
+  tCol : TColEx;
+  tpa  : TPointArray;
+begin
+  tCol.create(83208, 30);
+  result := tCol.findPie([544,46,567,69], 0, 360, 0, 72, 556, 140, tpa);
+end;
+
+function isUsingQP(): Boolean;
+var
+  tCol : TColEx;
+begin
+  tCol.create(14610138, 20);
+  result := (tCol.count([544,90,568,114]) < 30);
+end;
+
+function toggleRunning(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not isLoggedin() then
+    Exit;
+
+  if Enable then
+  begin
+    if isUsingRun() then
+      exit(true)
+    else
+    begin
+      mouseBox(toBox(545,130,590,150), MOUSE_LEFT);
+      exit(true);
+    end;
+  end else if not Enable then
+    if isUsingRun() then
+    begin
+      mouseBox(toBox(545,130,590,150), MOUSE_LEFT);
+      Result := True;
+    end;
+end;
+
+function toggleQP(Enable: Boolean): Boolean;
+begin
+  Result := False;
+  if not isLoggedin() then
+    Exit;
+
+  if Enable then
+  begin
+    if isUsingQP() then
+      exit(true)
+    else
+    begin
+      mouseBox(toBox(522,96,565,113), MOUSE_LEFT);
+      exit(true);
+    end;
+  end else if not Enable then
+    if isUsingRun() then
+    begin
+      mouseBox(toBox(522,96,565,113), MOUSE_LEFT);
+      Result := True;
+    end;
+end;

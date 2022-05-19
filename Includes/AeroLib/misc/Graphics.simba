@@ -1,0 +1,298 @@
+//TODO: Perhaps make these into an Enum.
+//TODO: Fix LoadSystemFont                           Needs Exporting.
+//TODO: Fix TMufasaBitmap.Copy                       Needs Exporting.
+//TODO: FIx TMufasaBitmap.FastDrawTransparent.       Needs Exporting.
+//TODO: Fix Self implicit this vs. parameter confusion. <-- Glitch.
+
+const
+  clBlack         = 0;
+  clWhite         = 16777215;
+  clRed           = 255;
+  clGreen         = 32768;
+  clBlue          = 16711680;
+  clYellow        = 65535;
+  clOrange        = 26367;
+  clAqua          = 16776960;
+  clPurple        = 8388736;
+  clTrade         = 8323199;
+  clTeal          = 8421376;
+  clGray          = 8421504;
+  clLime          = 65280;
+  clSilver        = 12632256;
+  clPink          = 11772650;
+  clFuchsia       = 16711935;
+  clNavy          = 8388608;
+  clMaroon        = 128;
+  clOutline_black = 65536;
+  clOutline_white = 16777215;
+
+var
+  Bmp__Pointers: array of ^TGraphics;
+
+Procedure TGraphics.Create(Img: Integer; Copy: Boolean = False);
+Begin
+  Self.Bmp.Init(Client.GetMBitmaps);
+  if (Copy) then
+    Self.Bmp := GetMufasaBitmap(CopyBitmap(Img))
+  else
+    Self.Bmp := GetMufasaBitmap(Img);
+  Self.Init := True;
+  Self.Width := Self.Bmp.GetWidth();
+  Self.Height := Self.Bmp.GetHeight();
+  Self.Bmp.SetTransparentColor(0);
+  Insert(@Self, Bmp__Pointers);
+  AddOnTerminate('TGraphicsFreeAll');
+End;
+
+Procedure TGraphics.Create(Img: TMufasaBitmap; Copy: Boolean = False); overload
+Begin
+  Self.Bmp.Init(Client.GetMBitmaps);
+  if (Copy) then
+    Self.Bmp := GetMufasaBitmap(CopyBitmap(Img.GetIndex)) //Self.Bmp := Img.Copy(0, 0, Img.Width, Img.Height)
+  else
+    Self.Bmp := Img;
+  Self.Init := True;
+  Self.Width := Img.GetWidth();
+  Self.Width := Img.GetHeight();
+  Self.Bmp.SetTransparentColor(0);
+  Insert(@Self, Bmp__Pointers);
+  AddOnTerminate('TGraphicsFreeAll');
+End;
+
+Procedure TGraphics.Create(Width, Height: Integer); overload;
+Begin
+  Self.Free;
+  Self.Bmp.Init(Client.GetMBitmaps);
+  Self.Bmp.SetSize(Width, Height);
+  Self.Init := True;
+  Self.Width := Width;
+  Self.Height := Height;
+  Self.Bmp.SetTransparentColor(0);
+  Insert(@Self, Bmp__Pointers);
+  AddOnTerminate('TGraphicsFreeAll');
+End;
+
+Procedure TGraphics.Create(Width, Height: Integer; Ptr: Uint32); overload
+Begin
+  Self.Bmp.Init(Client.GetMBitmaps);
+  Self.Bmp.SetPersistentMemory(Ptr, Width, Height);
+  Self.Init := True;
+  Self.Width := Width;
+  Self.Height := Height;
+  Self.Bmp.SetTransparentColor(0);
+  Insert(@Self, Bmp__Pointers);
+  AddOnTerminate('TGraphicsFreeAll');
+End;
+
+Procedure DeletePtrGX(Ptr: ^TGraphics; var Pointers: Array of ^TGraphics);
+var
+  I, J: Integer = 0;
+  Ptrs: Array of ^TGraphics;
+begin
+  SetLength(Ptrs, Length(Pointers));
+  For I := 0 To High(Pointers) do
+    if (Pointers[I] <> Ptr) then
+    begin
+      Ptrs[J] := Pointers[I];
+      Inc(J);
+    end;
+  SetLength(Ptrs, J);
+  Pointers := Ptrs;
+end;
+
+Procedure TGraphics.Free;
+Begin
+  try
+    Self.Bmp.ResetPersistentMemory;
+    Self.Bmp.Free;
+  except end;
+  Self.Init   := False;
+  Self.Width  := 0;
+  Self.Height := 0;
+  DeletePtrGX(@Self, Bmp__Pointers);
+End;
+
+Function TGraphics.ToBitmap(Copy: Boolean = True): Integer;
+Begin
+  If (Copy) then
+    Result := CopyBitmap(Self.Bmp.GetIndex())
+  else
+    Result := Self.Bmp.GetIndex();
+End;
+
+Procedure TGraphics.Clear;
+Begin
+  if (Self.Bmp.GetTransparentColor <> -1) then
+    Self.Bmp.drawClear(Self.Bmp.GetTransparentColor)
+  else
+    Self.Bmp.DrawClear(0);
+End;
+
+Procedure TGraphics.ClearArea(Area: TBox);
+Begin
+  if (Self.Bmp.GetTransparentColor <> -1) then
+    Self.Bmp.Rectangle(Area, Self.Bmp.GetTransparentColor)
+  else
+    Self.Bmp.Rectangle(Area, 0);
+End;
+
+Procedure TGraphics.ClearArea(X1, Y1, X2, Y2: Integer);  overload;
+Begin
+  Self.ClearArea(toBox(X1, Y1, X2, Y2));
+End;
+
+Procedure TGraphics.DrawBox(Box: TBox; Fill: Boolean = False; Colour: TColor = clRed);
+var
+  TPA: Array Of TPoint;
+Begin
+  If (Fill) then
+    Self.Bmp.Rectangle(Box, Colour)
+  Else
+    Begin
+      TPA := EdgeFromBox(Box);
+      try
+        Self.Bmp.DrawTPA(TPA, Colour);
+      except
+      end;
+    End;
+End;
+
+Procedure TGraphics.DrawBox(X1, Y1, X2, Y2: Integer; Fill: Boolean = False; Colour: TColor = clRed);  overload;
+Begin
+  Self.DrawBox(toBox(X1, Y1, X2, Y2), Fill, Colour);
+End;
+
+Procedure TGraphics.DrawClippedBox(Box, ClipArea: TBox; Fill: Boolean = False; Colour: TColor = clRed);
+var
+  TPA: Array Of TPoint;
+Begin
+  If (Fill) Then
+  Begin
+    TPA := TPAFromBox(Box);
+    FilterPointsBox(TPA, ClipArea.X1, ClipArea.Y1, ClipArea.X2, ClipArea.Y2);
+    Self.Bmp.DrawTPA(TPA, Colour);
+  End Else
+    Begin
+      TPA := EdgeFromBox(Box);
+      FilterPointsBox(TPA, ClipArea.X1, ClipArea.Y1, ClipArea.X2, ClipArea.Y2);
+      Self.Bmp.DrawTPA(TPA, Colour);
+    End;
+End;
+
+Procedure TGraphics.DrawBoxes(Boxes: Array of TBox; Colour: TColor = clRed; Fill: Boolean = False);
+var
+  I: Integer;
+Begin
+  For I := 0 To High(Boxes) do
+    Self.DrawBox(Boxes[I], Fill, Colour);
+End;
+
+Procedure TGraphics.DrawTPA(TPA: Array of TPoint; Colour: TColor = clRed; Erase: Boolean = False);
+Begin
+  If (Erase) then Self.Clear;
+  Self.Bmp.DrawTPA(TPA, Colour);
+End;
+
+Procedure TGraphics.DrawATPA(ATPA: Array of Array of TPoint; Erase: Boolean = False);
+var
+  I, L: Integer;
+  Colours: Array of TColor;
+Begin
+  If (Erase) then Self.Clear;
+  Colours := [clWhite, clRed, clGreen, clBlue, clYellow, clOrange, clAqua, clPurple, clTeal, clGray, clLime, clSilver, clPink, clFuchsia, clNavy];
+  L := High(Colours);
+
+  For I := 0 To High(ATPA) do
+  begin
+    Self.Bmp.DrawTPA(ATPA[I], Colours[I Div L + I Mod L]);
+  end;
+End;
+
+Procedure TGraphics.DrawATPA(ATPA: Array of Array of TPoint; Colours: Array of TColor; Erase: Boolean = False); overload;
+Begin
+  If (Erase) then Self.Clear;
+  Self.Bmp.DrawATPA(ATPA, Colours);
+End;
+
+Procedure TGraphics.DrawLine(P, Q: TPoint; Colour: TColor = clRed; Erase: Boolean = False);
+begin
+  If (Erase) then Self.Clear;
+  Self.Bmp.LineTo(P, Q, Colour);
+end;
+
+Procedure TGraphics.DrawCircle(Center: TPoint; Radius: Integer; Colour: TColor = clRed; Fill: Boolean = False);
+Begin
+  Self.DrawEllipse(Center, Radius, Radius, Colour, Fill);
+End;
+
+Procedure TGraphics.DrawEllipse(Center: TPoint; XRadius, YRadius: Integer; Colour: TColor = clRed; Fill: Boolean = False);
+var
+  TPA: Array of TPoint;
+Begin
+  TPA := TPAFromEllipse(Center.X, Center.Y, XRadius, YRadius);
+  If (Fill) then FillEllipse(TPA);
+  Self.DrawTPA(TPA, Colour, False);
+End;
+
+Procedure TGraphics.DrawBitmap(Bitmap: Integer; Location: TPoint = Point(0, 0); Erase: Boolean = False);
+Begin
+  If (Erase) then Self.Clear;
+  FastDrawTransparent(Location.X, Location.Y, Bitmap, Self.Bmp.GetIndex);
+  //Self.Bmp.FastDrawTransparent(Location.X, Location.Y, GetMufasaBitmap(Bitmap));
+End;
+
+Procedure TGraphics.DrawBitmap(Bitmap: TMufasaBitmap; Location: TPoint = Point(0, 0); Erase: Boolean = False); overload;
+Begin
+  If (Erase) then Self.Clear;
+  FastDrawTransparent(Location.X, Location.Y, Bitmap.GetIndex, Self.Bmp.GetIndex);
+  //Self.Bmp.FastDrawTransparent(Location.X, Location.Y, Bitmap);
+End;
+
+Procedure TGraphics.DrawClippedText(Text, Font: String; Position: TPoint; Colour: TColor = clRed);
+var
+  I, W, H: Integer;
+  TPA: Array of TPoint;
+Begin
+  TPA := TPAFromText(Text, Font, W, H);
+  OffsetTPA(TPA, Position);
+  For I := 0 To High(TPA) do
+    If (PointInBox(TPA[I], toBox(0, 0, Self.Bmp.GetWidth - 1, Self.Bmp.GetHeight - 1))) then
+      Self.Bmp.DrawTPA([TPA[I]], Colour);
+End;
+
+Function TGraphics.GetInternalBitmap: TMufasaBitmap;
+begin
+  Result := Self.Bmp;
+end;
+
+Function TGraphics.Width: Integer;
+begin
+  Result := Self.Width;
+end;
+
+Function TGraphics.Height: Integer;
+begin
+  Result := Self.Height;
+end;
+
+Function TGraphics.IsInitialized: Boolean;
+begin
+  Result := Self.Init;
+end;
+
+Procedure TGraphicsFreeAll;
+var
+  I: Integer;
+begin
+  For I := 0 To High(Bmp__Pointers) Do
+    if (Bmp__Pointers[I] <> nil) then
+    Begin
+      try
+        Bmp__Pointers[I]^.Bmp.ResetPersistentMemory;
+      except end;
+      Bmp__Pointers[I]^.Bmp.Free;
+      Bmp__Pointers[I]^.Init := False;
+      Bmp__Pointers[I]^.Width := 0;
+      Bmp__Pointers[I]^.Height := 0;
+    End;
+end;

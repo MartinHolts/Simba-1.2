@@ -1,0 +1,1028 @@
+{
+====
+Bank
+====
+}
+
+Var
+  searchItem : TItem;
+
+function isBankOpen(): Boolean;
+begin
+  result := Interfaces[BANKSCREEN].isVisible();
+end;
+
+function isDepositBoxOpen(): Boolean;
+begin
+  result := Interfaces[DEPOSITSCREEN].isVisible();
+end;
+
+function getBankMode(): String;
+var
+  X,Y,tBMP : Integer;
+begin
+  Result := 'Standard';
+  if not isBankOpen() then exit;
+
+// The bitmap is loaded each time the function is called, possible issues?
+  tBMP := BitmapFromString(23, 14, 'meJydk7EOgzAMRPN7Ra3YWChiYi' +
+        'CAOvX/e+JUY2JsEFFkIed4uThOStuo+8+rXRAx09HgkidgHoSqm6o' +
+        'uW6VkVsFkOfz92c96I83hhxVwiZDVQLYOC8gNwZUiiKAZvp6AGpjE' +
+        '9AT6jAGEMk8A/uM9nkJiJ2IDJwrcgoAYC+Ki8SyIHqe4II+gt7M2J' +
+        'HnYY0VHCYeu/t27I+ueDNpeSnT6goI71c2v8z+61Kfp');
+  if findBitmapToleranceIn(tBMP, X, Y, 65, 50, 95, 70, 5) then
+    Result := 'Tabbed';
+
+  MBX1 := 60;
+  MBY1 := 60;
+  MBX2 := 446;
+  MBY2 := 288;
+
+  if result = 'Tabbed' then
+  begin
+    incEx(MBY1, 20);
+    incEx(MBY2, 8);
+  end;
+
+  freeBitmap(tBMP);
+end;
+
+{
+  Modes:
+    1: First item in tab
+    2: Digits
+    3: Roman numeral
+    4: Hide tab bar (standard)
+}
+procedure switchBankModes(Mode: Integer);
+var
+  m : String;
+begin
+  if not isBankOpen() then
+    Exit;
+
+  m := getBankMode();
+
+  if (m = 'Standard') then
+    mouseBox(toBox(453,76,471,94), MOUSE_LEFT)
+  else if (m = 'Standard') then
+    mouseBox(toBox(471,52,488,70), MOUSE_LEFT);
+
+  wait(randomRange(200,600));
+
+  case Mode of
+    1: if not (getColor(132, 124) = 1796387) then
+        begin
+          brakeMMouse(point(133,120), 5, 5, False);
+          fastClick(MOUSE_LEFT);
+        end;
+    2: if not (getColor(132, 141) = 1796387) then
+        begin
+          brakeMMouse(point(133,137), 5, 5, False);
+          fastClick(MOUSE_LEFT);
+        end;
+    3: if not (getColor(132, 158) = 1796387) then
+        begin
+          brakeMMouse(point(133,154), 5, 5, False);
+          fastClick(MOUSE_LEFT);
+        end;
+    4: if not (getColor(132, 175) = 1796387) then
+        begin
+          brakeMMouse(point(133,171), 5, 5, False);
+          fastClick(MOUSE_LEFT);
+        end;
+  end;
+
+  if (m = 'Standard') then
+    mouseBox(toBox(453,76,471,94), MOUSE_LEFT)
+  else if (m = 'Standard') then
+    mouseBox(toBox(471,52,488,70), MOUSE_LEFT);
+end;
+
+(*
+getBankItemCount
+~~~~~
+
+.. code-block:: pascal
+
+    function getBankItemCount(): integer;
+
+Returns the number of total items in your bank account.
+
+.. note::
+
+    Author: Flight
+    Last Modified: 12-9-2013
+
+Example:
+
+.. code-block:: pascal
+
+    writeln('I have a total of '+intToStr(getBankItemCount)+' items in my bank account');
+*)
+function getBankItemCount(): integer;
+var
+  S: String;
+begin
+  if not isBankOpen() then
+    Exit(-1);
+
+  if (getBankMode() = 'Standard') then
+    S := getTextAtExWrap(25, 28, 45, 38, 1, 2, 1, 2070783, 0, StatChars07)
+  else
+    S := getTextAtExWrap(25, 12, 45, 22, 1, 2, 1, 2070783, 0, StatChars07);
+  Result := strToInt(Replace(S, ' ', ''));
+end;
+
+(*
+InPin
+~~~~~
+
+.. code-block:: pascal
+
+    function inPin(Pin: string): Boolean;
+
+Enters bank pin. Will try 3 times, returns true if bank is opened.
+
+.. note::
+
+    Author: ZephyrsFury and Nava2
+    Last Modified: Unknown
+
+Example:
+
+.. code-block:: pascal
+
+    if PinScreen then
+    InPin('1234');
+*)
+function inPin(Pin: string): Boolean;
+var
+  T   : Timer;
+  Col : TColEx;
+  pnt,fPnt : TPoint;
+  X,Y,I,J,Tries,ColorCount : Integer;
+  Boxes : Array of TBox;
+begin
+  if not Interfaces[PINSCREEN].isVisible() then
+    Exit(False);
+
+  if (getNumbers(Pin) <> Pin) then
+  begin
+    Warn('Invalid Pin #', WT_CORE);
+    Exit(False);
+  end;
+
+  if (Length(Pin) <> 4) then
+  begin
+    Warn('Pin must be 4 digits long', WT_CORE);
+    Exit(False);
+  end;
+
+  Boxes := [toBox(37, 107, 100, 170), toBox(127, 107, 190, 170), toBox(217, 107, 280, 170), toBox(307, 107, 370, 170),
+            toBox(37, 179, 100, 242), toBox(127, 179, 190, 242), toBox(217, 179, 280, 242),
+            toBox(37, 251, 100, 314), toBox(127, 251, 190, 314), toBox(217, 251, 280, 314)];
+
+  while Interfaces[PINSCREEN].isVisible() do
+  begin
+    for I:=1 to 4 do
+    begin
+      if not Interfaces[PINSCREEN].isVisible() then Break;
+
+      Col.create(clWhite, 10);
+      ColorCount := Col.count(toBox(150,80,380,100));
+      // Counts the "Now click the NUM_X digit.". This is used later on.
+
+      if waitFindText(fPnt, Pin[I], upChars07, toBox(30,100,383,319), 75, randomRange(1250,1800)) then
+      begin
+        for J:=0 to High(Boxes) do
+        begin
+          if IntInBox(fPnt.x, fPnt.y, Boxes[J]) then
+          begin
+            if Interfaces[PINSCREEN].isVisible() then
+              mouseBox(Boxes[J], MOUSE_LEFT);
+            Break;
+          end;
+        end;
+      end else
+      begin
+        getMousePos(X, Y);
+        for J:=0 to High(Boxes) do
+          if IntInBox(X, Y, Boxes[J]) then
+          begin
+            if Interfaces[PINSCREEN].isVisible() then
+              mouseBox(Boxes[J], MOUSE_LEFT);
+            Break;
+          end;
+      end;
+
+      Wait(100);
+      while (Col.count(toBox(150,80,380,100)) = ColorCount) do
+        Wait(500);
+
+      Wait(RandomRange(300, 600));
+
+      if isBankOpen() or not Interfaces[PINSCREEN].isVisible() then
+        Exit(True);
+    end;
+
+    T.start();
+    while ((T.timeElapsed() < 500) and (not isBankOpen())) do
+      Wait(1);
+
+    clickContinue(True);
+
+    Col.create(0, 1);
+    while not (Col.findIn(toBox(7,460,69,474), pnt)) do
+    begin
+      Wait(500);
+      if not isLoggedIn() then
+        Exit;
+    end;
+    Inc(Tries);
+
+    if Tries > 2 then
+    begin
+      Warn('Incorrect PIN!', WT_CORE);
+      closeInterface();
+      Exit(False);
+    end;
+
+  end;
+
+  Result := waitFunc(@isBankOpen, 50, 3000);
+end;
+
+(*
+DepositItemBox
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function depositItemBox(Item: Integer): TBox;
+
+Returns a TBox surround Item (1 to 28) in the Deposit Box screen.
+
+.. note::
+
+    Author: ZephyrsFury
+    Last Modified: Ashaman88 -07
+
+Example:
+
+.. code-block:: pascal
+
+    currentItem := depositItemBox(itemSlot);
+*)
+function depositItemBox(Item: Integer): TBox;
+begin
+  Result.X1 := 132 + (Item - 1) mod 7 * 40;
+  Result.Y1 := 75 + (Item - 1) div 7 * 42;
+  Result.X2 := Result.X1 + 30;
+  Result.Y2 := Result.Y1 + 30;
+end;
+
+function getTabCount(): Integer;
+var
+  X,Y,tBMP : Integer;
+  fPnts    : TPointArray;
+begin
+  result := 0;
+  if ((not isBankOpen()) or (getBankMode() = 'Standard')) then
+    exit;
+
+  inc(result);
+  tBMP := BitmapFromString(39, 38, 'meJzt0qENACAQQ9HugiRhF3ZgAf' +
+        'Y3CMwFcOSqflNV80wl9TGzW2pTyB6VmdvNFp+uBz1cGxpdJ6pwWic' +
+        'qy3VBQUFBQUFBQUFBQUFBP1F/FyvOrrE=');
+
+  if not findBitmapsSpiralTolerance(tBMP, X, Y, fPnts, 58, 40, 465, 80, 5) then
+  begin
+    freeBitmap(tBMP);
+    exit;
+  end;
+
+  result := length(fPnts);
+  freeBitmap(tBMP);
+end;
+
+(*
+GetCurrentBankTab
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getCurrentBankTab(): Integer;
+
+Returns Current Bank Tab selected
+
+.. note::
+
+    Author: Narcle & Flight
+    Last Modified: 11-5-14
+
+Example:
+
+.. code-block:: pascal
+
+    curTab := getCurrentBankTab();
+*)
+
+function getCurrentBankTab(): Integer;
+var
+  i     : Integer;
+  xVals : TIntegerArray;
+begin
+  Result := -1;
+  if ((not isBankOpen()) or (getBankMode = 'Standard')) then
+    Exit;
+
+  setLength(xVals, 10);
+  xVals := [80,121,160,207,238,280,318,358,400,440];
+  for i:=0 to 9 do
+    if (not (getColor(xVals[i],79) = 5334129)) then
+      Exit(i);
+  Result := 0;
+end;
+
+function waitForTabChange(Tab, TimeToWait: Integer): Boolean;
+var
+  T : Timer;
+begin
+  Result := false;
+  if ((not isBankOpen()) or (getBankMode = 'Standard')) then
+    Exit;
+
+  T.start();
+  while (T.timeElapsed() < TimeToWait) do
+    if getCurrentBankTab() = Tab then
+      Exit(True);
+end;
+
+// 0-9, 0 being the main tab
+function switchBankTab(Tab: Integer): Boolean;
+var
+  xVals : TIntegerArray;
+begin
+  Result := false;
+  if ((not isBankOpen()) or (getBankMode = 'Standard')) then
+    Exit;
+
+  if (getCurrentBankTab() = Tab) then
+    Exit(true);
+
+  if not inRange(Tab, 0, 9) then
+  begin
+    warn('Error switching bank tabs, please us 0-9', WT_CORE);
+    Exit;
+  end;
+
+  setLength(xVals, 10);
+  xVals := [84,124,164,204,244,284,324,364,404,444];
+
+  mouseBox(pointToBox(point(xVals[Tab], 62), 14), MOUSE_LEFT);
+  result := waitForTabChange(Tab, 2000);
+end;
+
+(*
+FixBank
+~~~~~~~
+
+.. code-block:: pascal
+
+    procedure fixBank();
+
+Scrolls the bank screen up.
+
+.. note::
+
+    Author: Flight
+
+Example:
+
+.. code-block:: pascal
+
+    FixBank;
+*)
+procedure fixBank();
+var
+  pnt : TPoint;
+  col : TColEx;
+begin
+  if not isBankOpen() then Exit;
+  col.create(4282469, 20);
+  case getBankMode() of
+    'Standard':
+      if not col.findIn(toBox(487,76,491,77), pnt) then
+        mouseBox(toBox(484,76,494,83), MOUSE_LEFT);
+    'Tabbed'  :
+      begin
+        switchBankTab(0);
+        wait(RandomRange(200,500));
+        if not col.findIn(toBox(487,100,491,101), pnt) then
+          mouseBox(toBox(484,100,494,105), MOUSE_LEFT);
+      end;
+  end;
+end;
+
+function itemsInBank(): Boolean;
+var
+  col_Black : TColEx;
+begin
+  col_Black.create(clOutline_black, 5);
+  result := col_Black.findIn(AREA_BS);
+end;
+
+function searchItemInBank(): Boolean;
+var
+  Pt : TPoint;
+begin
+  if not isBankOpen() then Exit(false);
+  result := searchItem.findIn(AREA_BS, Pt);
+end;
+
+{*******************************************************************************
+function scrollToItem(Item: TItem; var Pnt: TPoint; scrollBar: Boolean = False): Boolean;
+By: Flight
+Description: Scroll to a bank item via the mouse scroll wheel.  If scrollBar is
+             set to true then the bank scroll bar will be used instead.
+*******************************************************************************}
+function scrollToItem(Item: TItem; var Pnt: TPoint; scrollBar: Boolean = False): Boolean;
+var
+  T       : Timer;
+  X,Y,A,I : integer;
+  rS      : extended;
+begin
+  if (not isBankOpen()) then
+    Exit(false);
+
+  waitFunc(@itemsInBank, 60, 4000); // Anti-lag
+
+  searchItem := Item;
+  T.start();
+  while T.timeElapsed() <= randomRange(400,900) do
+    if Item.findIn(AREA_BS, Pnt) then
+      Exit(true);
+
+  fixBank();
+  wait(randomRange(400,900));
+
+  while T.timeElapsed() <= randomRange(400,900) do
+    if Item.findIn(AREA_BS, Pnt) then
+      Exit(true);
+
+  if scrollBar then
+  begin
+    A := MouseSpeed;
+    if getBankMode() = 'Standard' then
+      brakeMMouse(Point(490,81), 5, 3, True)
+    else if getBankMode() = 'Tabbed' then
+      brakeMMouse(Point(490,104), 5, 3, True);
+  end else
+    if (not mouseInBox(AREA_BS)) then
+      mouseBox(AREA_BS, MOUSE_MOVE);
+
+  getMousePos(X, Y);
+
+  if scrollBar then
+  begin
+    holdMouse(X, Y, MOUSE_LEFT);
+    mouseSpeed := 1;
+    rS  := (random(30) / 30) / 10.0;
+    if rS = 0.0 then
+      rS := 0.1;
+
+    if getBankMode() = 'Standard' then
+      result := windMouseFunc(X, Y, 490+randomRange(-5,5), 265+randomRange(-3,3), 9.0,3.0,10.0*rS, @searchItemInBank, True)
+    else if getBankMode() = 'Tabbed' then
+      result := windMouseFunc(X, Y, 490+randomRange(-5,5), 275+randomRange(-5,3), 9.0,3.0,10.0*rS, @searchItemInBank, True);
+  end else
+    while (not Item.findIn(AREA_BS, Pnt)) do
+    begin
+      if (not itemsInBank()) then
+        exit(false);
+      scrollMouse(X, Y, 1);
+      inc(I);
+      if I = (randomRange(5,7)) then // Average number of scrolls before moving finger to the front wheel
+      begin
+        wait(randomRange(800,1200)); // Simulate moving finger to starting position
+        I := 0;
+      end else
+       wait(randomRange(60,120));
+    end;
+
+  if scrollBar then
+  begin
+    wait(randomRange(400,800));
+    getMousePos(X, Y);
+    releaseMouse(X, Y, MOUSE_LEFT);
+    mouseSpeed := A;
+  end;
+  wait(randomRange(200,400));
+  result := Item.findIn(AREA_BS, Pnt);
+end;
+
+(*
+DepositItem
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function depositItem(Slot, Amount: Integer; wait: Boolean)): Boolean;
+
+Deposits item at slot "Slot".  Accepts any amount, -1 for all.  If 'wait'
+is set to true then it will wait until there is no item in the given slot.
+
+.. note::
+
+    Author: Flight
+    Last Modified: 18/2/2014 by Flight
+*)
+function depositItem(Slot, Amount: Integer; DoWait: Boolean=True): Boolean;
+var
+  B    : TBox;
+  T    : Timer;
+  pnt  : TPoint;
+  bCol : TColEx;
+begin
+  if isBankOpen() then
+  begin
+    if not itemInSlot(Slot) then
+      Exit(True);
+  end else if isDepositBoxOpen() then
+  begin
+    B := depositItemBox(Slot);
+    bCol.create(clOutline_black, 1);
+    if (not bCol.findIn(B, pnt)) then
+      Exit(True);
+  end;
+
+  if (isBankOpen() or isDepositBoxOpen()) then
+  begin
+    if isBankOpen() then
+      B := invBox(Slot)
+    else
+      B := depositItemBox(Slot);
+
+    if (Amount = 1) then
+    begin
+      if isBankOpen() then
+        mouseBox(B, MOUSE_LEFT)
+      else
+
+      Exit(True);
+    end else
+      mouseBox(B, MOUSE_RIGHT);
+
+    if (Amount = -1) then
+      result := waitOptionMulti(['Deposit-All','it-A','Deposit All','sit All'], 300)
+    else
+      Result := waitOptionMulti(['Deposit-' + intToStr(Amount) + ' ','it-' + intToStr(Amount) + ' ',
+                                  'Deposit ' + intToStr(Amount) + ' ','sit ' + intToStr(Amount) + ' '], 300);
+
+    if DoWait then
+    begin
+      T.start();
+      repeat
+        if not itemInSlot(Slot) then break;
+      until(T.timeElapsed >= 4000);
+    end;
+    if Result then
+      Exit;
+
+    if (Amount > 0) then
+    begin
+      if waitOptionMulti(['Deposit-X','it-X','Deposit X','sit X'], 700) then
+      begin
+        bCol.create(0, 1);
+        T.start();
+        while (T.timeElapsed < 10000) and (not inRange(bCol.count(toBox(211,394,308,411)), 200, 300)) do
+          Wait(50);
+        Wait(RandomRange(75, 400));
+        typeSend(intToStr(Amount));
+        Result := True;
+      end;
+    end;
+  end;
+end;
+
+function depositItem(Pnt: TPoint; Amount: Integer; DoWait: Boolean=True): Boolean; overload;
+begin
+  result := depositItem(pointToItem(Pnt), Amount, DoWait);
+end;
+
+(*
+QuickDeposit
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure wuickDeposit(Which: String);
+
+Quickly deposits all inventory items or equipment
+
+.. note::
+
+    Author: Flight
+    Last Modified: Flight 12-9-2013
+
+Example:
+
+.. code-block:: pascal
+
+    quickDeposit('inventory');
+*)
+procedure quickDeposit(Which: String);
+begin
+  if isBankOpen() then
+  begin
+    case lowercase(Which) of
+      'inventory','inv':
+        begin
+          if getBankMode() = 'Standard' then
+            mouseBox(toBox(428,291,460,322), MOUSE_LEFT)
+          else if getBankMode() = 'Tabbed' then
+            mouseBox(toBox(428,298,460,328), MOUSE_LEFT);
+        end;
+      'equipment','worn','equip':
+        begin
+          if getBankMode() = 'Standard' then
+            mouseBox(toBox(465,291,497,322), MOUSE_LEFT)
+          else if getBankMode() = 'Tabbed' then
+            mouseBox(toBox(465,298,497,328), MOUSE_LEFT);
+        end;
+      else
+      begin
+        warn('Invalid deposit method', WT_CORE);
+        Exit;
+      end;
+    end;
+    Wait(200 + Random(300));
+  end else if isDepositBoxOpen() then
+  begin
+    case lowercase(Which) of
+      'inventory','inv'         : mouseBox(toBox(183,246,210,275), MOUSE_LEFT);
+      'equipment','worn','equip': mouseBox(toBox(246,246,274,275), MOUSE_LEFT);
+      'loot','loot bag'         : mouseBox(toBox(310,246,338,275), MOUSE_LEFT);
+    end;
+  end;
+end;
+
+procedure depositAllFrom(Slot: Integer; DoWait: Boolean=True);
+var
+  i : Integer;
+begin
+  for i:=Slot to 28 do
+    depositItem(i, -1, DoWait);
+end;
+
+procedure depositSlots(Slots: TIntegerArray; DoWait: Boolean=True);
+var
+  i : Integer;
+begin
+  for i:=0 to high(Slots) do
+    depositItem(slots[i], -1, DoWait);
+end;
+
+(*
+WithdrawPoint
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function withdrawPoint(Pnt: TPoint; Amount: Integer; Uptexts: TStringArray): Boolean;
+
+Withdraws Amount at a TPoint.
+
+.. note::
+
+    Author: Flight
+
+Example:
+
+.. code-block:: pascal
+
+    withdrawPoint(Point(250,375), 10, ['ron ore','ore','on or']);
+*)
+function withdrawPoint(Pnt: TPoint; Amount: Integer; Uptexts: TStringArray): Boolean;
+var
+  Box  : TBox;
+  T    : Timer;
+  bCol : TColEx;
+  TPA  : TPointArray;
+  ATPA : T2DPointArray;
+begin
+  Result := False;
+  if not isBankOpen() then
+  begin
+    warn('Bank is not open');
+    exit(False);
+  end;
+  waitFunc(@itemsInBank, 60, 4000); // Anti-lag
+
+  bCol.create(clOutline_black, 1);
+  if bCol.findAllIn(toBox(Pnt.X-20,Pnt.Y-20,Pnt.X+20,Pnt.Y+20), TPA) then
+  begin
+    ATPA := clusterTPA(TPA, 5);
+    sortATPAFromMidPoint(ATPA, Pnt);
+    Box := ATPA[0].getBounds();
+    mouseBox(Box, MOUSE_MOVE);
+  end else
+    humanMMouse(Pnt, 7, 7);
+
+  if not waitUptextMulti(Uptexts, 500) then
+    Exit(false);
+
+  if (Amount = 1) then
+    fastClick(MOUSE_LEFT)
+  else
+    fastClick(MOUSE_RIGHT);
+
+  if (Amount = 1) then
+  begin
+    Wait(RandomRange(250, 550));
+    Exit(True);
+  end;
+
+  if (Amount = -1) then
+    Result := waitOptionMulti(['Withdraw-All-but', 'l-b'], 700)
+  else
+  begin
+    if (Amount = 0) then
+      Result := waitOptionMulti(['Withdraw-All', 'w-A'], 700)
+    else
+    begin
+      if waitOptionExistsMulti(['thdraw-' + intToStr(Amount), 'w-' + intToStr(Amount)], 400) then
+        if waitOptionMulti(['thdraw-' + intToStr(Amount), 'w-' + intToStr(Amount)], 400) then
+          Exit(true);
+
+      if waitOptionMulti(['Withdraw-X', 'w-X', 'X'], 700) then
+      begin
+        bCol.create(0, 1);
+        T.start();
+        while (T.timeElapsed < 10000) and (not inRange(bCol.count(toBox(211,394,308,411)), 200, 300)) do
+          Wait(50);
+        Wait(RandomRange(75, 400));
+        typeSend(intToStr(Amount), True);
+        Result := True;
+      end;
+    end;
+  end;
+end;
+
+function withdrawPoint(Pnt: TPoint; Amount: Integer; ForceInput: Boolean=False): Boolean; overload;
+var
+  Box  : TBox;
+  T    : Timer;
+  bCol : TColEx;
+  TPA  : TPointArray;
+  ATPA : T2DPointArray;
+begin
+  Result := False;
+  if not isBankOpen() then
+  begin
+    warn('Bank is not open');
+    exit(False);
+  end;
+  waitFunc(@itemsInBank, 60, 4000); // Anti-lag
+
+  bCol.create(clOutline_black, 1);
+  if bCol.findAllIn(toBox(Pnt.X-20,Pnt.Y-20,Pnt.X+20,Pnt.Y+20), TPA) then
+  begin
+    ATPA := clusterTPA(TPA, 5);
+    sortATPAFromMidPoint(ATPA, Pnt);
+    Box := ATPA[0].getBounds();
+    mouseBox(Box, MOUSE_MOVE);
+  end else
+    humanMMouse(Pnt, 7, 7);
+
+  if inRange(Amount, 1, 4) then
+    fastClickAmount(Amount)
+  else
+    fastClick(MOUSE_RIGHT);
+
+  if inRange(Amount, 1, 4) then
+  begin
+    wait(RandomRange(250, 550));
+    exit(True);
+  end;
+
+  if (Amount = -1) then
+    Result := waitOptionMulti(['Withdraw-All-but', 'l-b'], 700)
+  else
+  begin
+    if (Amount = 0) then
+      Result := waitOptionMulti(['Withdraw-All', 'w-A'], 700)
+    else
+    begin
+      if waitOptionExistsMulti(['thdraw-' + intToStr(Amount), 'w-' + intToStr(Amount)], 400) then
+        if waitOptionMulti(['thdraw-' + intToStr(Amount), 'w-' + intToStr(Amount)], 400) then
+          exit(true);
+
+      if not ForceInput then
+      begin
+        if inRange(Amount, 6, 9) then
+          if waitOptionMulti(['Withdraw-5 ', 'w-5 '], 300) then
+          begin
+            humanMMouse(Pnt, 7, 7);
+            fastClickAmount(Amount-5);
+            exit(true);
+          end;
+
+        if inRange(Amount, 11, 14) then
+          if waitOptionMulti(['Withdraw-10 ', 'w-10 '], 300) then
+          begin
+            humanMMouse(Pnt, 7, 7);
+            fastClickAmount(Amount-10);
+            exit(true);
+          end;
+      end;
+
+      if waitOptionMulti(['Withdraw-X', 'w-X', 'X'], 300) then
+      begin
+        bCol.create(0, 1);
+        T.start();
+        while (T.timeElapsed < 10000) and (not inRange(bCol.count(toBox(211,394,308,411)), 200, 300)) do
+          wait(50);
+        wait(RandomRange(75, 400));
+        typeSend(intToStr(Amount), True);
+        Result := True;
+      end;
+    end;
+  end;
+end;
+
+function withdrawItem(Item: TItem; Amount: Integer; Uptexts: TStringArray): Boolean;
+var
+  P : TPoint;
+begin
+  waitFunc(@itemsInBank, 60, 4000); // Anti-lag
+  if not Item.findIn(AREA_BS, P) then exit(false);
+  Result := withdrawPoint(P, Amount, Uptexts);
+end;
+
+function withdrawItem(Item: TItem; Amount: Integer): Boolean; overload;
+var
+  P : TPoint;
+begin
+  waitFunc(@itemsInBank, 60, 4000); // Anti-lag
+  if not Item.findIn(AREA_BS, P) then exit(false);
+  Result := withdrawPoint(P, Amount);
+end;
+
+procedure searchBank(Item: string);
+var
+  T    : Timer;
+  bCol : TColEx;
+  i    : Integer;
+begin
+  if not isBankOpen() then
+    Exit;
+
+  bCol.create(0, 1);
+  if (Item = '') then
+    if (inRange(bCol.count(toBox(211,394,308,411)), 200, 300)) then
+    begin
+      if getBankMode() = 'Standard' then
+        humanMMouse(Point(399,307), 12, 12)
+      else if getBankMode() = 'Tabbed' then
+        humanMMouse(Point(399,314), 12, 12);
+      fastClick(MOUSE_LEFT);
+      T.start();
+      while (isBankOpen() and (T.timeElapsed < 5000)) do
+        Wait(250 + Random(350));
+      Exit;
+    end;
+
+  for i:=0 to 2 do
+  begin
+    if getBankMode() = 'Standard' then
+      humanMMouse(Point(399,307), 12, 12)
+    else if getBankMode() = 'Tabbed' then
+      humanMMouse(Point(399,314), 12, 12);
+    fastClick(MOUSE_LEFT);
+    T.start();
+    while (isBankOpen() and (T.timeElapsed < 5000)) do
+    begin
+      Wait(250 + Random(350));
+      if (inRange(bCol.count(toBox(87,392,432,412)), 950, 1100)) then
+      begin
+        TypeSend(Item);
+        Exit;
+      end;
+    end;
+    Wait(250 + Random(350));
+  end;
+end;
+
+(*
+Notes
+~~~~~
+
+.. code-block:: pascal
+
+    procedure notes(SwitchOn: Boolean);
+
+Toggles withdraw mode to Item or Note (True for Note, False for Item).
+
+.. note::
+
+    Author: lordsaturn & Flight
+    Last Modified: Flight 12-9-2013
+
+Example:
+
+.. code-block:: pascal
+
+    notes(True);
+  Withdraw(Col, Row, 100);
+*)
+procedure notes(SwitchOn: Boolean);
+begin
+  if isBankOpen() then
+    if SwitchOn then
+    begin
+      if getBankMode() = 'Standard' then
+      begin
+        if (getColor(305, 318) = 5067345) then
+          mouseBox(toBox(287,304,368,322), MOUSE_LEFT);
+      end else if getBankMode() = 'Tabbed' then
+      begin
+        if (getColor(307, 323) = 5067345) then
+          mouseBox(toBox(295,314,361,328), MOUSE_LEFT);
+      end;
+    end else
+    begin
+      if getBankMode() = 'Standard' then
+      begin
+        if (getColor(230, 314) = 5067345) then
+          mouseBox(toBox(203,304,282,322), MOUSE_LEFT);
+      end else if getBankMode() = 'Tabbed' then
+      begin
+        if (getColor(221, 319) = 5067345) then
+          mouseBox(toBox(208,316,277,327), MOUSE_LEFT);
+      end;
+    end;
+end;
+
+function FFlag(Dist: Integer): Boolean; forward;
+Function openBankPoint(BankPoint: TPoint; LeftClick: Boolean): Boolean;
+var
+  T : Timer;
+begin
+  Result := False;
+  if (not isLoggedIn()) then
+    Exit(false);
+
+  if isBankOpen() or isDepositBoxOpen() then
+    exit(true);
+
+  if not isUpTextMulti(['Bank','anker','booth','eposit','t box','Bank Chest']) then
+    case random(10) of
+      0..6:  missMouse(BankPoint, 5, 5);
+      7..10: humanMMouse(BankPoint, 5, 5);
+    end;
+
+  if waitUpTextMulti(['Bank Ba','Bank bo','booth','eposit','t box','Use Bank chest','ank chest','k Chest'], 100) then
+  begin
+    if LeftClick then
+    begin
+      fastClick(MOUSE_LEFT);
+      if not didRedClick() then
+        exit(false);
+    end else
+    begin
+      fastClick(MOUSE_RIGHT);
+      if not waitOptionMulti(['Open','k B','n De','it Ban','Use Bank chest','Use Bank'], 200) then
+        exit(false);
+    end;
+  end else
+  begin
+    fastClick(MOUSE_RIGHT);
+    if not waitOptionMulti(['Open','k B','n De','nk F','nk Ar','ank Yu','it Ban','Use Bank chest'], 200) then
+      exit(false);
+  end;
+
+  FFlag(5);
+  T.start();
+  repeat
+    if isPlayerWalking() then
+    begin
+      while isPlayerWalking() do
+        wait(randomRange(60,90));
+      T.start();
+    end;
+    if (isBankOpen() or isDepositBoxOpen()) then
+      exit(true);
+    if Interfaces[PINSCREEN].isVisible() then
+    begin
+      if (Me.Pin <> '') then
+        result := inPin(Me.Pin);
+      exit;
+    end;
+
+    if findBlackChatMessage('reach that!') then exit(false);
+    if areTalking() then exit(false);
+    wait(randomRange(60,90));
+  until(T.timeElapsed() > 7000);
+end;

@@ -1,0 +1,498 @@
+{
+=====
+Login
+=====
+}
+
+
+(*
+SetAudioOff
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function SetAudioOff(): boolean;
+
+Turns offs the music on the login screen.
+Should default turn off, upon loading old school RS.
+
+.. note::
+
+    by Ashaman88/Le Jingle
+
+Example:
+
+.. code-block:: pascal
+
+    SetAudioOff;
+
+*)
+
+function setAudioOff(): boolean;
+var
+  c : integer;
+begin
+  c := countColor(65536, 725, 463, 760, 498);
+  // 346 = Turned Off Already
+  // 284 = Turned On...
+
+  result := inrange(c, 340, 350);
+  if not result then
+    mouse(Point(742,481), 10, 10, MOUSE_LEFT);
+end;
+
+function getLoginState(): Integer;
+var
+  tCol : TColEx;
+begin
+  if (getColor(427,489) = 16777215) then
+    Exit(LS_LOGGEDIN);
+  tCol.create(12899548, 5);
+  if tCol.findIn(toBox(555,13,569,28)) then
+    Exit(LS_LOGGEDIN);
+  if (getcolor(146,6) = 1682881) then
+    Exit(LS_WORLDSCREEN);
+  if (getColor(400,335) = 16777215) then
+    Exit(LS_SPLASHSCREEN);
+  Result := LS_LOGGEDOUT;
+end;
+
+function connectionLost(): Boolean;
+var
+  X,Y   : Integer;
+begin
+  result := (findText(X, Y, 'attem', 'SmallChars07', toBox(0,0,230,35)) or
+             findText(X, Y, 'lease', 'SmallChars07', toBox(0,0,230,35)));
+end;
+
+function isLoggedIn(): Boolean;
+var
+  T : Timer;
+begin
+  if connectionLost() then
+  begin
+    T.start();
+    while (connectionLost() and (T.timeElapsed() < 60000)) do
+      wait(70);
+  end;
+
+  result := getLoginState() = LS_LOGGEDIN;
+end;
+
+function isSplashScreen(): Boolean;
+begin
+  result := getLoginState() = LS_SPLASHSCREEN;
+end;
+
+function isWorldScreen(): Boolean;
+begin
+  result := getLoginState() = LS_WORLDSCREEN;
+end;
+
+(*
+RSReady
+~~~~~~~
+
+.. code-block:: pascal
+
+    function RSReady: Boolean;
+
+Returns true if we are ready to auto (on loginscreen or logged in).
+Useful for waiting until RS has fully loaded.
+
+.. note::
+
+    by ZephyrsFury
+    Last modified 05/12/2013 by Flight
+
+Example:
+
+.. code-block:: pascal
+
+    while not RSReady() do
+      SleepAndMoveMouse(100 + Random(500));
+
+*)
+
+function RSReady(): boolean;
+var
+  T : Timer;
+begin
+  if isLoggedIn() then
+    exit(true);
+
+  T.start();
+  while (T.timeElapsed < 120000) do
+  begin
+    if (getColor(31,488) = 16777215) then
+    begin
+      setAudioOff();
+      exit(true);
+    end;
+    if isSplashScreen() or isWorldScreen() then
+      exit(true);
+    wait(50+random(25));
+  end;
+
+  warn('Could not start up OSRS or RSReady was not detected!', WT_CORE);
+  terminateScript();
+end;
+
+function WS_enabled(): Boolean; forward;
+function WS_logout(): Boolean; forward;
+function logoutPlayer(): Boolean;
+var
+  T : Timer;
+label
+  start;
+begin
+  if not isLoggedIn() then
+    exit(true);
+
+  start:
+  if not gametab(TAB_LOGOUT) then
+    exit(false);
+
+  if WS_enabled() then
+    if WS_logout() then exit(true);
+  T.start();
+  while (Me.inCombat() and (T.timeElapsed() < 5000)) do
+    wait(60+random(25));
+
+  T.start();
+  repeat
+    mousebox(BOX_LO, MOUSE_LEFT);
+    wait(randomRange(400,1100));
+    if (not isLoggedIn()) then
+      exit(true);
+  until(T.timeElapsed > 11000);
+
+  if isSplashScreen() then
+  begin
+    mouseBox(BOX_WD, MOUSE_LEFT);
+    while not isLoggedIn() do
+      wait(60+random(25));
+    GoTo start;
+  end;
+end;
+
+var
+  IgnoreWorlds : TIntegerArray;
+
+function selectWorld(W: integer): boolean; forward;
+function randomWorld(Member: Boolean): Integer; forward;
+function getCurrentWorldLS(): integer; forward;
+
+function loginPlayer(Safe: Boolean=False): Boolean;
+var
+  Box            : TBox;
+  T              : Timer;
+  p              : TPoint;
+  wTxtCol,lCol,
+  rCol           : TColEx;
+  c,w,typtmp,uL,
+  uH,pL,pH,uLen,
+  pLen,i,j,
+  Attempts,rw    : Integer;
+  foundLogin,
+  retryLogin,
+  doSwitch       : Boolean;
+  TPA            : TPointArray;
+  Actions        : TVariantArray;
+label
+  EnterName,EnterGame,SplashScreen;
+begin
+  //{$IFNDEF SMART}
+    //activateClient();
+  //{$ENDIF}
+  if isLoggedIn() then
+    exit(true);
+  if ((length(Me.Name) < 1) or (length(Me.Pass) < 1)) then
+  begin
+    warn('No username / password, deactivating player...', WT_CORE);
+    Me.Active := false;
+    Exit(false);
+  end;
+
+  if isSplashScreen() then
+    goto SplashScreen;
+
+  if not Me.Active then
+  begin
+    warn('Player inactive...', WT_CORE);
+    Exit(false);
+  end;
+
+  if (length(Me.Name) < 1) then
+    Exit(false);
+
+  T.start();
+  repeat
+    if (T.timeElapsed > 180000) then
+    begin
+      warn('It has been 3 minutes and OSRS is not yet ready, terminating script.', WT_CORE);
+      terminateScript();
+    end;
+    Wait(RandomRange(1000,2000));
+  until (RSReady);
+
+  warn('Logging player in...', WT_CORE);
+
+  if isLoggedIn() then
+    exit(true);
+
+  if isSplashScreen() then
+    goto SplashScreen;
+
+  //if Length(Me.WorldList) > 0 then
+    //selectWorld(Me.WorldList[0]);
+
+  EnterName:
+  wTxtCol.create(WHITE_TEXT, 1);
+  if not wTxtCol.findAllIn(toBox(439,313,484,327), TPA) then
+  begin
+    mouseBox(BOX_EU, MOUSE_LEFT);
+    rCol.create(clRed, 5);
+    T.start();
+    while (T.timeElapsed() < 60000) do
+    begin
+      if rCol.findIn(toBox(405,220,430,240)) then
+      begin
+        mouseBox(toBox(236,306,367,337), MOUSE_LEFT);
+        wait(500 + random(500));
+      end;
+
+      c := countColor(65535, 238, 215, 526, 230);
+      if ((c > 1) and (not rCol.findIn(toBox(405,220,430,240)))) then
+      begin
+        foundLogin := true;
+        break;
+      end;
+      wait(500 + random(500));
+    end;
+    if not FoundLogin then
+    begin
+      warn('Unable to detect login interface...', WT_CORE);
+      exit(false);
+    end;
+  end;
+
+  for W:=0 to 1 do
+  begin
+    if W = 0 then
+      Box := BOX_PB
+    else
+      Box := BOX_UB;
+
+    lCol.create(LOGIN_TEXTCOLOUR, 1);
+    lCol.findAllIn(Box, TPA);
+
+    T.start();
+    repeat
+      if (Length(TPA) > 0) then
+      begin
+        sortTPAFrom(TPA, Point(Box.X2, Box.Y1 + (Box.Y2 - Box.X2) div 2));
+        p := point(TPA[0].X + 20, TPA[0].Y);
+        if (not pointInBox(p, Box)) then
+          p := point(BOX_UB.X2 - (10 + random(10)), p.y);
+        mouse(p, 5, 5, MOUSE_LEFT);
+      end else
+        mouseBox(Box, MOUSE_LEFT);
+
+      typtmp := 0;
+      if (countColor(LOGIN_TEXTCOLOUR, Box.X1, Box.Y1, Box.X2, Box.Y2) > 0) then
+      begin
+        keyDown(VK_BACK);
+        while (countColor(LOGIN_TEXTCOLOUR, Box.X1, Box.Y1, Box.X2, Box.Y2) > 0) do
+        begin
+          Inc(typtmp);
+          Wait(50+Random(50));
+          if (typtmp >= RandomRange(20, 24)) then
+            Break;
+        end;
+        keyUp(VK_BACK);
+      end;
+    until(not lCol.findAllIn(Box, TPA) or (T.timeElapsed > 120000));
+  end;
+
+  Wait(100 + Random(200));
+
+  if (not Safe) then
+  begin
+    mouseBox(BOX_UB, MOUSE_LEFT);
+    typeSend(Me.Name);
+    mouseBox(BOX_PB, MOUSE_LEFT);
+    typeSend(Me.Pass, false);
+  end else
+  begin
+    uL := 1;
+    pL := 1;
+    uLen := length(Me.Name);
+    pLen := length(Me.Pass);
+
+    repeat
+      if (not (uH = uLen)) then
+      begin
+        mouseBox(BOX_UB, MOUSE_LEFT);
+        // prevents "Out of string range" errors
+        uH := (uL + randomRange(1, 3));
+        if (uH > uLen) then
+          uH := uLen;
+
+        for i := uL to uH do
+        begin
+          wait(100 + random(100));
+          typeSend(Me.Name[i], false);
+        end;
+
+        uL := (uH + 1);
+      end;
+
+      if (not (pH = pLen)) then
+      begin
+        mouseBox(BOX_PB, MOUSE_LEFT);
+        // prevents "Out of string range" errors
+        pH := (pL + randomRange(1, 3));
+        if (pH > pLen) then
+          pH := pLen;
+
+        for j := pL to pH do
+        begin
+          wait(100 + random(100));
+          typeSend(Me.Pass[j], false);
+        end;
+
+        pL := (pH + 1);
+      end;
+
+    until((uH = uLen) and (pH = pLen));
+  end;
+
+  EnterGame:
+  mouseBox(BOX_GB, MOUSE_LEFT);
+
+  T.start();
+  repeat
+    if (isSplashScreen() or isLoggedIn()) then
+      break;
+
+    SetLength(Actions, 0);
+
+    if (T.timeElapsed() > 60000) then
+      Actions :=       ['One minute has passed... Debug: ' + toStr(CountColor(LOGIN_STATUSCOLOUR, 224, 190, 532, 250)),              0,    5,    'Terminate']
+    else
+    case (CountColor(LOGIN_STATUSCOLOUR, 224, 190, 532, 250)) of
+                        // WriteLn Error                  Wait for   Retrys    Action
+      863 : Actions := ['Invalid Username / Password',           0,    0,    'Terminate'];
+      1539: Actions := ['Your account has been disabled',        0,    0,    'Terminate'];
+      1073: Actions := ['Your account is already logged in',  1700,    5,    'Retry'];
+       492: Actions := ['Error Connecting',                  20000,    10,   'Retry'];
+      1437: Actions := ['Too many incorrect logins',     5 * 60000,    2,    'Switch'];
+       906: Actions := ['This world is full',                 2000,    3,    'Switch'];
+      1227: Actions := ['Login limit exceeded.',              5000,    5,    'Switch'];
+      1231: Actions := ['No reply from login server',         5000,    2,    'Switch'];
+      1136: Actions := ['Runescape has been updated',            0,    0,    'RSUpdate'];
+       777: Actions := ['Login limit exceeded',                  0,    2,    'Switch'];
+      1700: Actions := ['Members world',                         0,    2,    'Switch'];
+      1664: Actions := ['Located in members only zone',          0,    2,    'Switch'];
+       774: Actions := ['Login server offline',               1500,    10,   'Retry'];
+      1318: Actions := ['Skill total of 500+',                   0,    3,    'Switch'];
+      1298: Actions := ['Skill total of 750+',                   0,    3,    'Switch'];
+      1022: Actions := ['Skill total of 1250+',                  0,    3,    'Switch'];
+      1037: Actions := ['Skill total of 1500+',                  0,    3,    'Switch'];
+      1017: Actions := ['Skill total of 1750+',                  0,    3,    'Switch'];
+      1053: Actions := ['Skill total of 2000+',                  0,    3,    'Switch'];
+      2325: Actions := ['Server too busy',                       0,    2,    'Switch'];
+
+
+    end;
+                             {Respond}
+
+    if (Length(Actions) > 0) then
+    begin
+      warn(Actions[0], WT_CORE);
+      Wait(1000 + Random(500));
+      Wait(Actions[1] + Random(100));
+
+      if (Actions[2] > 0) then
+      begin
+        if (Attempts < Actions[2])then
+        begin
+          RetryLogin := True;
+          Wait(2000 + Random(1000));
+        end else
+          terminateScript();
+      end;
+
+      case Actions[3] of
+        'Terminate': terminateScript();
+
+        'Retry':
+          begin
+            RetryLogin := True;
+            break;
+          end;
+
+        'Switch':
+          begin
+            doSwitch := True;
+            break;
+          end;
+
+        'RSUpdate':
+          begin
+            if AL_HasProc(al_OnRSUpdate) then
+            begin
+              case actions[0] of
+                'Runescape has been updated.':
+                  begin
+                    warn('OSRS has updated, waiting 5 minutes to restart SMART.', WT_CORE);
+                    Wait(300000);
+                  end;
+              end;
+              AL_Procs[al_OnRSUpdate]();
+              RetryLogin;
+            end;
+            warn('OSRS has been updated, please restart Simba.', WT_CORE);
+            terminateScript();
+          end;
+      end;
+    end;
+    wait(randomRange(90,130));
+  until(Result);
+
+  SplashScreen:
+  if isSplashScreen() then
+  begin
+    mouseBox(BOX_WD, MOUSE_LEFT);
+    i := 0;
+    repeat
+      inc(i);
+      Wait(100 + Random(100));
+    until (isLoggedIn() or (i > 30));
+  end;
+
+{Back to main screen if needed}
+  if doSwitch then
+  begin
+    rw := randomWorld(Me.Member);
+    selectWorld(rw);
+    warn('World '+toStr(rw)+' selected', WT_CORE);
+    RetryLogin := False;
+    DoSwitch := False;
+    Inc(Attempts);
+    goto EnterGame;
+  end;
+
+  Wait(100 + Random(100));
+
+  if RetryLogin then
+  begin
+    RetryLogin := False;
+    Inc(Attempts);
+    goto EnterGame;
+  end;
+
+  Result := isLoggedIn();
+  if Result then inc(count_Login);
+end;

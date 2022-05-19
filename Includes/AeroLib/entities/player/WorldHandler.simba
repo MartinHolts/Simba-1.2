@@ -1,0 +1,494 @@
+{
+============
+WorldHandler
+============
+}
+
+Const
+  PATH_WORLDLIST = AL_INCPATH+'/WorldList.txt';
+
+
+(*
+ExitWorldScreen
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function exitWorldscreen(): boolean;
+
+Closes the world screen, results true if successfully closed
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function exitWorldScreen(): Boolean;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN) then
+    Exit(True);
+
+  mousebox(toBox(719,6,750,15), MOUSE_LEFT);
+  result := not (getLoginState() = LS_WORLDSCREEN);
+end;
+
+(*
+getCurrentWorldLS
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getCurrentWorldLS(): integer;
+
+Returns the current world at the login screen
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function getCurrentWorldLS(): integer;
+var
+  txt :  String;
+begin
+  if not (getLoginState() = LS_LOGGEDOUT) then
+    exit(-1);
+  txt    := getTextAtEx(BOX_CW.X1, BOX_CW.Y1, BOX_CW.X2, BOX_CW.Y2, 0, 5, 2, 16777215, 2, 'UpChars07');
+  result := strToIntDef(txt, 0);
+end;
+
+(*
+OpenWorldScreen
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function: openWorldScreen(): Boolean;
+
+Opens the world screen, returns true if it is succesfully opened.
+
+.. note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block::pascal
+
+*)
+procedure updateWorldList(); forward;
+function loadWorldList(WorldType: String): TIntegerArray; forward;
+function openWorldScreen(): Boolean;
+var
+  T : Timer;
+begin
+  if (getLoginState() = LS_WORLDSCREEN) then
+    exit(true);
+  mousebox(toBox(13,468,98,491), MOUSE_LEFT);
+
+  T.start();
+  repeat
+    wait(100);
+    if (getLoginState() = LS_WORLDSCREEN) then
+      break;
+  until(T.timeElapsed() >= 6000);
+
+  result := (getLoginState() = LS_WORLDSCREEN);
+  if result then updateWorldList();
+end;
+
+(*
+WorldsOrdered
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function worldsOrdered(): boolean;
+
+Returns true if worlds are already ordered
+
+.. note::
+
+  by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function worldsOrdered(): Boolean;
+begin
+  Result := getcolor(300,8)=2851375;
+end;
+
+
+(*
+OrderWorlds
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Procedure orderWorlds();
+
+Orders worlds by their number
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+Function orderWorlds(): boolean;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN)then
+    openWorldScreen();
+
+  mousebox(toBox(297,8,306,13), MOUSE_LEFT);
+  result := true;
+end;
+
+function getWorlds(WorldType: String): TIntegerArray;
+var
+  numBox  : TBox;
+  wBoxCol,
+  wCol    : TColEx;
+  s       : String;
+  i       : Integer;
+  tpa     : TPointArray;
+  atpa    : T2DPointArray;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN)then
+    if not openWorldScreen() then Exit;
+
+  wCol.create(0, 0);
+  if (WorldType = 'P2P') then
+    wBoxCol.create(4882590, 19, 0.09, 0.38)
+  else if (WorldType = 'F2P') then
+    wBoxCol.create(8487297, 27, 0.00, 0.02);
+
+  if not wBoxCol.findAllIn([12,25,745,493], tpa) then Exit;
+  atpa   := clusterTPA(tpa, 3);
+  tpa    := [];
+
+  for i:=0 to high(atpa) do
+    if length(atpa[i]) > 70 then
+    begin
+      numBox := [atpa[i].getBounds().X1+3, atpa[i].getBounds().Y1+3, atpa[i].getBounds().X1+28, atpa[i].getBounds().Y2-4];
+      s := getTextAtEx(numBox.X1, numBox.Y1, numBox.X2, numBox.Y2, 0, 5, 4, 0, 0, 'WorldListChars07');
+      if s <> '' then
+      begin
+        setLength(result, length(result)+1);
+        result[high(result)] := strToIntDef(s, 0);
+      end;
+    end;
+end;
+
+function getWorldBox(World:Integer): TBox;
+var
+  numBox  : TBox;
+  wBoxColP,
+  wBoxColF,
+  wCol    : TColEx;
+  s       : String;
+  i       : Integer;
+  tpaP,
+  tpaF    : TPointArray;
+  atpa    : T2DPointArray;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN)then
+    openWorldScreen();
+
+  wCol.create(0, 0);
+  wBoxColP.create(4882590, 19, 0.09, 0.38);  // P2P world box
+  wBoxColF.create(8487297, 27, 0.00, 0.02);  // F2P world box
+
+  if not wBoxColP.findAllIn([1,25,755,505], tpaP) then Exit;
+  if not wBoxColF.findAllIn([1,25,755,505], tpaF) then Exit;
+  combineTPAWrap(tpaP,tpaF,tpaP);
+  atpa   := clusterTPA(tpaP, 3);
+
+  for i:=0 to high(atpa) do
+    if length(atpa[i]) > 70 then
+    begin
+      numBox := [atpa[i].getBounds().X1+3, atpa[i].getBounds().Y1+3, atpa[i].getBounds().X1+28, atpa[i].getBounds().Y2-4];
+      s := getTextAtEx(numBox.X1, numBox.Y1, numBox.X2, numBox.Y2, 0, 5, 4, 0, 0, 'WorldListChars07');
+      if s <> '' then
+        if (strToInt(s) = World) then
+          exit(atpa[i].getBounds());
+    end;
+
+  warn('Couldn'#39't find world '+toStr(World), WT_CORE);
+end;
+
+(*
+FullWorld
+~~~~~~~~~
+
+.. code-block:: pascal
+
+    function fullWorld(W: integer): Boolean;
+
+returns true if world is full
+
+..note::
+
+    by Ashaman88 / Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function fullWorld(World: Integer): boolean;
+var
+  txt: string;
+  checkbox: tbox;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN)then
+    if not openWorldScreen() then exit(false);
+  checkbox := getWorldBox(World);
+  if (checkBox.X1 > 0) then
+  begin
+    try
+      txt := getTextAtEx(checkbox.x1+28, checkbox.y1+4, checkbox.x2-14, checkbox.y2-2, 0, 4, 2, 16777215, 0, 'StatChars07');
+      result:= arrinstr(['FULL','ENLL','FNLL','EULL'],txt);
+    except
+      warn('Critical error while checking for full world', WT_CORE);
+    end;
+  end;
+end;
+
+(*
+SelectWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    Function selectWorld(W: Integer): Boolean;
+
+Switches to the specified world. Returns true if successful.
+
+..note::
+
+    by Narcle / ZephyrsFury & Flight
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function selectWorld(W: integer): boolean;
+var
+  T      : Timer;
+  wb     : Tbox;
+  Worlds : TIntegerArray;
+begin
+  if not (getLoginState() = LS_WORLDSCREEN)then
+    openWorldScreen(); ;
+
+  combineIntArrayWrap(loadWorldList('P2P'), loadWorldList('F2P'), Worlds);
+  quicksort(Worlds);
+
+  if not inIntArray(Worlds, W) then
+  begin
+    warn('Invalid world', WT_CORE);
+    exitWorldScreen();
+    Exit(false);
+  end;
+
+  if not openWorldScreen() then
+    exitWorldScreen();
+
+  if openWorldScreen() then
+  begin
+    wb:= getWorldBox(W);
+
+    if not worldsOrdered() then
+    begin
+      if not orderWorlds() then
+      begin
+        warn('Could not order worlds properly.', WT_CORE);
+        exitWorldScreen();
+        Exit;
+      end;
+      wait(400+random(200));
+    end;
+
+    if fullworld(W) then
+    begin
+      warn('World selected is currently full.', WT_CORE);
+      exitWorldScreen();
+      exit;
+    end;
+
+    if wb.x1 = 0 then
+    begin
+      exitWorldScreen();
+      exit(false);
+    end;
+    mousebox(wb, MOUSE_LEFT);
+    result:=true;
+  end;
+
+  T.start();
+  repeat
+    wait(randomrange(400,500));
+    if not (getLoginState() = LS_WORLDSCREEN) then
+      break;
+  until(T.timeElapsed() > 6000);
+
+  if (getLoginState() = LS_WORLDSCREEN) then
+    exitWorldScreen();
+
+  wait(randomrange(400,500));
+  if (not(Result)) then typeByte(vk_Escape);
+end;
+
+
+(*
+RandomWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function randomWorld(): Integer;
+
+Returns a random world
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function randomWorld(Member: Boolean): Integer;
+var
+  MemWorlds,
+  FreeWorlds : TIntegerArray;
+begin
+  MemWorlds  := loadWorldList('P2P');
+
+  FreeWorlds := loadWorldList('F2P');
+
+  try
+    if Member then
+      Result := MemWorlds[Random(High(MemWorlds))]
+    else
+      Result := FreeWorlds[Random(High(FreeWorlds))];
+  except
+    warn('Error while gathering world list', WT_CORE);
+  end;
+end;
+
+(*
+ChangeWorld
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function changeWorld(W: Integer): Boolean;
+
+Changes to world W, returns True if successful.
+
+..note::
+
+    by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function changeWorld(W: Integer; Safe: Boolean): Boolean;
+begin
+  if isLoggedIn() then
+    waitFunc(@logoutPlayer, 500, 5000);
+  result := getCurrentWorldLS = w;
+  if not result then
+    Result := selectWorld(W);
+  //if Length(Me.WorldList) > 0 then
+    //Me.WorldList[0]:=W;
+  loginPlayer(Safe);
+end;
+
+procedure switchRandomWorld();
+var
+  W : Integer;
+begin
+  if isLoggedIn() then
+    logoutPlayer();
+  W := randomWorld(Me.Member);
+  warn('World '+toStr(W)+' chosen.', WT_SCRIPT);
+  changeWorld(W, false);
+  if not isLoggedIn() then
+    loginPlayer(false);
+end;
+
+procedure updateWorldList();
+var
+  i       : Integer;
+  iWorlds : TIntegerArray;
+  sWorlds : TStringArray;
+begin
+// Write last updated
+  writeINI('WorldList_Main', 'Last updated', dateToStr(Date), PATH_WORLDLIST);
+
+  if isLoggedIn() then logoutPlayer();
+
+// Gather & write Free-to-Play worlds
+  iWorlds := getWorlds('F2P');
+  for i:=0 to high(iWorlds) do
+  begin
+    setArrayLength(sWorlds, length(sWorlds)+1);
+    sWorlds[high(sWorlds)] := toStr(iWorlds[i]);
+  end;
+  writeINIArray('WorldList_F2P', 'List', PATH_WORLDLIST, sWorlds);
+  iWorlds := [];
+  sWorlds := [];
+
+// Gather & write Pay-to-Play worlds
+  iWorlds := getWorlds('P2P');
+  for i:=0 to high(iWorlds) do
+  begin
+    setArrayLength(sWorlds, length(sWorlds)+1);
+    sWorlds[high(sWorlds)] := toStr(iWorlds[i]);
+  end;
+  writeINIArray('WorldList_P2P', 'List', PATH_WORLDLIST, sWorlds);
+end;
+
+function loadWorldList(WorldType: String): TIntegerArray;
+var
+  i       : Integer;
+  sWorlds : TStringArray;
+begin
+  if not fileExists(PATH_WORLDLIST) then
+  begin
+    warn('WorldList not found!');
+    Exit;
+  end;
+
+  try
+    sWorlds := readINIArray('WorldList_'+WorldType, 'List', PATH_WORLDLIST);
+    for i:=0 to high(sWorlds) do
+    begin
+      setArrayLength(result, length(result)+1);
+      result[high(result)] := strToInt(sWorlds[i]);
+    end;
+  except
+    warn('Invalid "WorldType", please use "F2P" or "P2P"');
+  end;
+end;

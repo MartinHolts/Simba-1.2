@@ -1,0 +1,26 @@
+program new;
+{$I SRL/OSR.simba}
+{$I RSWalker/Walker.simba}
+
+var
+  RSW:TRSWalker;
+  path:TPointArray;
+
+procedure onMove(sender: PRSWalker);
+begin
+  RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
+end;
+
+begin
+  //RSW.Init('world.png');
+  RSW.InitEx('world', RSWUtils.SliceRange([2,2],[5,7]));
+  AddOnTerminate(@RSW.Free);
+
+  RSW.MemScanEnabled := True;
+  RSW.SkipClose   := 10;
+  RSW.onMoveEvent := @onMove;
+  RSW.ScreenWalk  := True;   // experimental for short walks
+
+  //WriteLn RSW.WebWalk(locCatherbyBank);
+  WriteLn RSW.WebWalk(locEdgeville);
+end.

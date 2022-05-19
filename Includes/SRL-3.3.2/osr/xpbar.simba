@@ -1,0 +1,110 @@
+(*
+XPBar
+======
+XPBar related methods
+*)
+type
+  TXPBar = record(TInterfaceBase)
+    FTextArea: TBox;
+
+    FButtonBounds: TBox;
+    FButtonMiddle: TPoint;
+    FButtonRadius: Integer;
+ end;
+
+var
+  XPBar: TXPBar;
+
+procedure TXPBar._Setup;
+begin
+  FBounds := [396, 7, 512, 33];
+  FTextArea := [402, 9, 512, 28];
+
+  FButtonBounds := [517, 21, 542, 47];
+  FButtonMiddle := MiddleBox(FButtonBounds);
+  FButtonRadius := 9;
+end;
+
+(*
+XPBar.IsOpen
+~~~~~~~~~~~~
+.. pascal:: function TXPBar.IsOpen(WaitTime: UInt32 = 0): Boolean;
+
+Attempts to open the XP-bar, returns ``True`` on success.
+*)
+function TXPBar.IsOpen(WaitTime: UInt32 = 0): Boolean;
+const
+  COL_INNER_BORDER = 4543066;
+var
+  TPA: TPointArray;
+  t: UInt64;
+begin
+  t := GetTickCount64() + WaitTime;
+  repeat
+    if (FindColors(TPA, COL_INNER_BORDER, Self.FBounds)) and
+       (GetTPABounds(TPA) = Self.FBounds) then
+         Exit(True);
+    if (WaitTime > 0) then
+      Wait(Random(50, 100));
+  until (GetTickCount64() >= t);
+end;
+
+(*
+XPBar.Toggle
+~~~~~~~~~~~~
+.. pascal:: function TXPBar.Toggle(Enable: Boolean): Boolean;
+
+Toggles ON/OFF the XP-bar.
+*)
+function TXPBar.Toggle(Enable: Boolean): Boolean;
+begin
+  if (Enable) and (not Self.isOpen()) then
+  begin
+    Mouse.Click(FButtonMiddle, FButtonRadius, mouse_Left);
+    Result := Self.isOpen(Random(2800, 3200));
+  end else
+  if (not Enable) and (Self.isOpen()) then
+  begin
+    Mouse.Click(FButtonMiddle, FButtonRadius, mouse_Left);
+    Result := True;
+  end;
+end;
+
+(*
+XPBar.Read
+~~~~~~~~~~
+.. code-block:: pascal
+
+  function TXPBar.Read: Integer;
+
+Opens the XPBar if needed and returns the current total.
+*)
+function TXPBar.Read: Integer;
+const
+  COL_TEXT = 16777215;
+var
+  TPA: TPointArray;
+  t: UInt64;
+begin
+  t := GetTickCount64() + 8000;
+  while (not Self.isOpen()) and (t > GetTickCount64()) do
+    if (Self.Toggle(True)) then
+      Break;
+
+  if (not Self.isOpen()) then
+    Exit(-1); // not open
+  if (not FindColors(TPA, COL_TEXT, FTextArea)) then
+    Exit(-2); // no color
+
+  case GetTPABounds(TPA).Height of // Support all font sizes!
+    10: Result := StrToIntDef(ExtractFromStr(srl.GetTextFromTPA(TPA, 1, 1, 10, 'UpChars07_s'), Numbers), -1);
+    11: Result := StrToIntDef(ExtractFromStr(srl.GetTextFromTPA(TPA, 1, 1, 10, 'SmallChars07'), Numbers), -1);
+    8: Result := StrToIntDef(ExtractFromStr(srl.GetTextFromTPA(TPA, 1, 1, 10, 'StatChars07'), Numbers), -1);
+  else
+    Exit(-3); // unknown font
+  end;
+end;
+
+begin
+  XPBar._Setup;
+end;

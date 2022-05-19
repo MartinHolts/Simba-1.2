@@ -1,0 +1,216 @@
+{
+======
+Master
+======
+}
+
+Var
+  BMP_PModChat,BMP_JModChat,
+  NickNameBMP: Integer;
+  gtalksBox,YelSkipBoxs: TBoxArray;
+  dismissedRandoms : Integer;
+  NicknameSet : boolean;
+  rand_TxtCol : TColEx;
+  DISABLE_RANDOMS : Boolean = True;
+  AL_HANDLEMODS   : Boolean = True;
+
+{*******************************************************************************
+procedure setScreenName(ScreenName: String);
+by: WT-Fakawi edited by Ashaman88, Justin
+Description: Sets screenname for use with FindTalk and one Player.
+*******************************************************************************}
+procedure setScreenName(ScreenName: string);
+begin
+  if (ScreenName = '') then
+    Exit;
+
+  NickNameBMP := bitmapFromText(ScreenName, UpChars07_s);
+  NicknameSet := true;
+end;
+
+Procedure rand_FreeGlobals;
+begin
+  freeBitmap(BMP_PModChat);
+  freeBitmap(BMP_JModChat);
+  if NicknameSet then
+    freeBitmap(NickNameBMP);
+end;
+
+(**
+ * Author: Coh3n
+ * Description: Sets the SRL_Randoms global array.
+ *)
+procedure setupRandoms();
+begin
+  rand_TxtCol.create(65535, 1);
+
+  BMP_PModChat := BitmapFromString(13, 11, 'meJybNm0aAyqYhk3kwYMHyOJA7q' +
+        'JFi9BESFIGF4ewIQBZhHhlaLKYAO4AIpXBVTIyMAARMgMtcODK0Ej' +
+        'ylE3DDSAKAE7XrXs=');
+
+  BMP_JModChat := BitmapFromString(13, 11, 'meJxTmXuBARWoYBNp//cfWRzI5f' +
+        '7/HU2EJGVwcQgbgpBFiFeGJouJ4A4gUhlcJSMDAxAhM9ACB64MjSR' +
+        'PGZCLC0EUAAAdQ6pl');
+
+  setScreenName(Me.Nick);
+  addOnTerminate('rand_FreeGlobals');
+end;
+
+{*******************************************************************************
+function findTalk(): Boolean;
+by: Ashaman88 & Flight
+Description: Searches screen for NickName and handles ALL Talking Randoms
+*******************************************************************************}
+function findTalk(): Boolean;
+var
+  Pnt : TPoint;
+  ax,ay,yCount,zCount,Count2,x1,y1,x2,y2,
+  Count1: Integer;
+begin
+  Result := False;
+  if not NicknameSet then Exit;
+
+  if rand_TxtCol.findIn(AREA_MS, Pnt) then
+  begin
+    SetArrayLength(gtalksBox, 0);
+    SetArrayLength(YelSkipBoxs, 0);
+
+    y1 := Pnt.y;
+    if ( ( Pnt.y + 5 ) > 334 ) then y2 := 334 else y2 := Pnt.y + 5;
+
+    x1 := Pnt.x; x2 := x1;
+    zCount := 0;
+
+    repeat
+      if rand_TxtCol.findIn(toBox(x2,y1+2,x2+3,y2+3), Pnt) then
+        zCount := 0
+      else
+        zCount := zCount + 1;
+
+      if ( zCount = 4 ) then Break;
+      x2 := x2 + 3;
+    until ( x2 + 3 > 515 );
+
+    if ( x2 + 3 <= 515 ) then x2 := x2 - 12;
+
+    if (x2 - x1 >= length(Me.Nick) * 4) then
+    begin
+
+      x1 := x1 - 8;
+      y1 := y1 - 8;
+      x2 := x2 + 8;
+      y2 := y2 + 8;
+
+      if ( x1 < 0 ) then x1 := 0;
+      if ( y1 < 0 ) then y1 := 0;
+      if ( x2 > 515 ) then x2 := 515;
+      if ( y2 > 334 ) then y2 := 334;
+
+      Count2 := Count2 + 1;
+      Count1 := Count1 + 1;
+      SetArrayLength(gtalksBox, Count2);
+      gtalksBox[Count2 - 1].x1 := x1;
+      gtalksBox[Count2 - 1].y1 := y1;
+      gtalksBox[Count2 - 1].x2 := x2;
+      gtalksBox[Count2 - 1].y2 := y2 + 6;
+
+      SetArrayLength(YelSkipBoxs, Count1);
+      YelSkipBoxs[Count1 - 1].x1 := x1;
+      YelSkipBoxs[Count1 - 1].y1 := y1;
+      YelSkipBoxs[Count1 - 1].x2 := x2;
+      YelSkipBoxs[Count1 - 1].y2 := y2;
+
+    end else
+    begin
+      y1 := y1 - 2;
+      y2 := y2 + 8;
+      x1 := x1 - 5;
+      x2 := x2 + 5;
+      if ( x1 < 0 ) then x1 := 0;
+      if ( y1 < 0 ) then y1 := 0;
+      if ( x2 > 515 ) then x2 := 515;
+      if ( y2 > 334 ) then y2 := 334;
+
+      Count1 := Count1 + 1;
+      SetArrayLength(YelSkipBoxs, Count1);
+      YelSkipBoxs[Count1 - 1].x1 := x1;
+      YelSkipBoxs[Count1 - 1].y1 := y1;
+      YelSkipBoxs[Count1 - 1].x2 := x2;
+      YelSkipBoxs[Count1 - 1].y2 := y2;
+    end;
+
+    if (GetArrayLength(gtalksBox) <> 0) then
+    begin
+      for yCount := 0 to GetArrayLength(gtalksBox) - 1 do
+      begin
+        if findBitmapMaskTolerance(NickNameBMP, ax, ay, gtalksBox[yCount].x1, gtalksBox[yCount].y1,
+           gtalksBox[yCount].x2, gtalksBox[yCount].y2, 0, 40) then
+        begin
+          warn('Found NickName', WT_RANDOM);
+          ax := (gtalksBox[yCount].x2 + gtalksBox[yCount].x1) shr 1;
+          ay := gtalksBox[yCount].y2 - 2;
+          missMouse(point(ax,ay), 0, 0);
+          if waitUpTextMulti(['Talk','lk-to','ttack','ard','curity'], RandomRange(150,300)) then
+          begin
+            fastClick(MOUSE_RIGHT);
+            if waitOptionMulti(['Dismi','smis'], 300) then
+              inc(dismissedRandoms);
+            FFlag(0);
+            Exit(true);
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function findMod(): Boolean;
+var
+  X,Y : Integer;
+begin
+  if not isLoggedIn() then Exit;
+  if not AL_HANDLEMODS then Exit;
+  if ((not findBitmapToleranceIn(BMP_PModChat, X, Y, MCX1, MCY1, (MCX1+50), MCY2, 20)) and
+      (not findBitmapToleranceIn(BMP_JModChat, X, Y, MCX1, MCY1, (MCX1+50), MCY2, 20))) then Exit;
+
+  warn('PMod/JMod detected.', WT_RANDOM);
+  result := true;
+end;
+
+function foundRandoms(): boolean;
+begin
+  if (not isLoggedIn()) or (isBankOpen()) then
+    exit;
+
+  if findTalk() then
+    Exit(True);
+
+  if findMod() then
+  begin
+    if al_HasProc(al_OnFindMod) then
+      al_Procs[al_OnFindMod]()
+    else
+    begin
+      logoutPlayer();
+      Me.Active := False;
+      terminateScript();
+    end;
+  end;
+end;
+
+{*******************************************************************************
+function waitEx(WaitTime: Integer): Boolean;
+by: DannyRS / Flight
+Description: Checks for random events while waiting
+*******************************************************************************}
+function waitEx(WaitTime: Integer): Boolean;
+var
+  T : Timer;
+begin
+  T.start();
+  while (T.timeElapsed() < WaitTime) do
+  begin
+    //if foundRandoms() then Exit(true);
+    wait(min(randomRange(40,90), WaitTime));
+  end;
+end;

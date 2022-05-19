@@ -1,0 +1,174 @@
+{
+=====
+Items
+=====
+}
+
+function TItem.findIn(Area: TBox; var fPnt: TPoint): Boolean;
+var
+  x,y : Integer;
+begin
+  result := False;
+  gameTab(TAB_INV);
+  try
+    if DTMExists(self.DTM) then
+      result := findDTM(self.DTM, x, y, Area.X1, Area.Y1, Area.X2, Area.Y2);
+    if not result then
+      if bitmapExists(self.BMP) then
+        result := findBitmapToleranceIn(self.BMP, x, y, Area.X1, Area.Y1, Area.X2, Area.Y2, self.BMP_TOL);
+  except
+    warn('Item DTM/BMP does not exist!', WT_CORE);
+    exit(false);
+  end;
+  fPnt := point(x, y);
+end;
+
+function TItem.inEquipment(): Boolean;
+var
+  x,y : Integer;
+begin
+  result := False;
+  gameTab(TAB_EQUIP);
+  if DTMExists(self.DTM) then
+    result := findDTM(self.DTM, x, y, AREA_INV.X1, AREA_INV.Y1, AREA_INV.X2, AREA_INV.Y2);
+  if not result then
+    if bitmapExists(self.BMP) then
+      result := findBitmapToleranceIn(self.BMP, x, y, AREA_INV.X1, AREA_INV.Y1, AREA_INV.X2, AREA_INV.Y2, self.BMP_TOL);
+end;
+
+function TItem.inInventory(): Boolean;
+var
+  Pnt : TPoint;
+begin
+  result := Self.findIn(AREA_INV, Pnt);
+end;
+
+function TItem.onMS(): Boolean;
+var
+  Pnt : TPoint;
+begin
+  result := Self.findIn(AREA_MS, Pnt);
+end;
+
+function isBankOpen(): Boolean; forward;
+function TItem.getAmount(ExcludeBank: Boolean): Integer;
+var
+  i,c : Integer;
+  pnt : TPoint;
+begin
+  result := 0;
+  gameTab(TAB_INV);
+  if not ExcludeBank then
+    if isBankOpen() then
+      if Self.findIn(Area_BS, pnt) then
+        exit(getItemAmount(pnt));
+
+  for i := 1 to 28 do
+    if itemInSlot(i) then
+      if Self.findIn(invBox(i), pnt) then
+      begin
+        c := getItemAmount(pnt);
+        if (c > 1) then
+          exit(c);
+        inc(Result);
+      end;
+end;
+
+function TItem.getAmount(): Integer; overload;
+begin
+  result := Self.getAmount(False);
+end;
+
+function TItem.waitAmountChange(MaxTime:Integer; ExcludeBank:Boolean=True): Boolean;
+var
+  T : Timer;
+  c : Integer;
+begin
+  c := Self.getAmount(ExcludeBank);
+  T.Start();
+  while (T.timeElapsed() < MaxTime) do
+    if (c <> Self.getAmount(ExcludeBank)) then
+      exit(true);
+end;
+
+function TItem.getStoreAmount(): Integer;
+var
+  pnt : TPoint;
+begin
+  result := 0;
+
+  if Self.findIn([30,60,475,160], pnt) then
+    exit(getItemAmount(pnt));
+end;
+
+function TItem.getSlots(): TIntegerArray;
+var
+  i   : Integer;
+  pnt : TPoint;
+begin
+  gameTab(TAB_INV);
+  for i:=1 to 28 do
+    if itemInSlot(i) then
+      if Self.findIn(invBox(i), pnt) then
+      begin
+        setArrayLength(result, Length(result)+1);
+        result[High(result)] := i;
+      end;
+end;
+
+function TItem.getSlot(): Integer;
+var
+  slots : TIntegerArray;
+begin
+  slots  := Self.getSlots();
+  if length(slots) < 1 then Exit;
+  result := slots[0];
+end;
+
+function TItem.getRandomSlot(): Integer;
+var
+  slots : TIntegerArray;
+begin
+  slots  := Self.getSlots();
+  if length(slots) < 1 then Exit;
+  result := slots[random(length(slots))]
+end;
+
+function TItem.inSlot(Slot:Integer): Boolean;
+var
+  slots : TIntegerArray;
+begin
+  slots  := Self.getSlots();
+  if length(slots) < 1 then Exit;
+  result := inIntArray(slots, Slot);
+end;
+
+function TItem.interact(action: Variant; miss: Boolean=False): Boolean;
+var
+  slot : Integer;
+begin
+  slot := Self.getRandomSlot()
+  if slot < 1 then Exit(false);
+  result := interactSlot(slot, action, miss);
+end;
+
+function TItem.fastDrop(OnlyOne:Boolean=True): Boolean;
+var
+  slot : Integer;
+begin
+  slot := Self.getSlot();
+  if slot < 1 then Exit(false);
+  if not isKeyDown(VK_SHIFT) then
+    keyDown(VK_SHIFT);
+  if (not mouseInBox(invBox(Slot))) then
+    mouseBox(invBox(Slot), MOUSE_MOVE);
+  fastClick(MOUSE_LEFT);
+  if OnlyOne then
+    keyUp(VK_SHIFT);
+  result := True;
+end;
+
+function TItem.fastDropAll(): Boolean;
+begin
+  result := fastDropSlots(Self.getSlots());
+end;

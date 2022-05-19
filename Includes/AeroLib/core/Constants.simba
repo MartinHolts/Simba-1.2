@@ -1,0 +1,217 @@
+{ const MMX1, MMY1, MMX2, MMY2;
+  Description: MiniMap Edge Points. }
+const
+  MMX1 = 570;
+  MMY1 = 9;
+  MMX2 = 714;
+  MMY2 = 155;
+
+{ const MMCX, MMCY;
+  Description: MiniMap Centre Point. }
+const
+  MMCX = 643;
+  MMCY = 83;
+
+{ const MSX1, MSY1, MSX2, MSY2;
+  Description: Main Screen EdgePoints. }
+const
+  MSX1 = 4;
+  MSY1 = 4;
+  MSX2 = 515;
+  MSY2 = 337;
+
+{ const MSCX, MSCY;
+  Description: Main Screen Centre Points. }
+const
+  MSCX = 259;
+  MSCY = 170;
+
+{ const MIX1, MIY1, MIX2, MIY2;
+  Description: Inventory EdgePoints. }
+const
+  MIX1 = 547;
+  MIY1 = 204;
+  MIX2 = 736;
+  MIY2 = 465;
+
+{ const MICX, MICY;
+  Description: Inventory Centre Points. }
+const
+  MICX = 641;
+  MICY = 335;
+
+{ const MCX1, MCY1, MCX2, MCY2;
+  Description: Chat Screen EdgePoints. }
+const
+  MCX1 = 7;
+  MCY1 = 345;
+  MCX2 = 512;
+  MCY2 = 473;
+
+{ const MCCX, MCCY;
+  Description: Chat Screen Centre Points. }
+const
+  MCCX = 259;
+  MCCY = 409;
+
+{ var MBX1, MBY1, MBX2, MBY2;
+  Description: BankScreen EdgePoints (where you click the items, does not include tabs). }
+var
+  MBX1 : Integer = 60;
+  MBY1 : Integer = 60;
+  MBX2 : Integer = 446;
+  MBY2 : Integer = 288;
+  AREA_BS : TBox = [60,60,446,288];
+
+  AREA_XPBAR : TBox = [430,10,511,25];
+
+{ const MBCX, MBCY;
+  Description: Bank Screen Centre Points. }
+const
+  MBCX = 259;
+  MBCY = 172;
+
+{ const DBX1, DBY1, DBX2, DBY2;
+  Description: Deposit box edgepoints (only where the item appear) }
+const
+  DBX1 = 131;
+  DBY1 = 75;
+  DBX2 = 402;
+  DBY2 = 232;
+
+{ const DBCX, DBCY;
+  Description: Deposit Box Screen Centre Points. }
+const
+  DBCX = 266;
+  DBCY = 153;
+
+  AREA_MS  : TBox = [MSX1,MSY1,MSX2,MSY2];
+  AREA_MM  : TBox = [MMX1,MMY1,MMX2,MMY2];
+  AREA_INV : TBox = [MIX1,MIY1,MIX2,MIY2];
+  AREA_CB  : TBox = [MCX1,MCY1,MCX2,MCY2];
+  AREA_DS  : TBox = [DBX1,DBY1,DBX2,DBY2];
+
+  MMCP     : TPoint = [MMCX,MMCY];
+  MSCP     : TPoint = [MSCX,MSCY];
+  MICP     : TPoint = [MICX,MICY];
+  MCCP     : TPoint = [MCCX,MCCY];
+
+const
+  DIR_NORTH = 1;
+  DIR_EAST  = 2;
+  DIR_SOUTH = 3;
+  DIR_WEST  = 4;
+
+{ Login }
+Var
+  BOX_EU : TBox = [389,271,535,311];   // Existing user box
+  BOX_CW : TBox = [61,463,94,480];     // Current world box
+  BOX_UB : TBox = [313,240,515,257];   // Username box
+  BOX_PB : TBox = [345,258,515,270];   // Password box
+  BOX_GB : TBox = [235,305,369,336];   // Click to login box
+  BOX_CB : TBox = [395,305,529,336];   // Cancel box
+  BOX_WD : TBox = [276,298,499,381];   // Click to play box (splash screen)
+  BOX_LO : TBox = [573,406,707,433];   // Logout box
+
+// Login states
+  LS_LOGGEDOUT    = 0;
+  LS_LOGGEDIN     = 1;
+  LS_SPLASHSCREEN = 2;
+  LS_WORLDSCREEN  = 3;
+
+
+const
+  SM_Color      = 8115338;
+  WHITE_TEXT    = 16777215;  // White text color
+  MESSAGE_BOX   = 11452366;  // The "helpful message" box color
+  INFO_BOX      = 7428416;   // Blue information box color
+  LOGIN_COLOR   = 6865381;   // Login button color
+  ERROR_BOX     = 2044518;   // Error box (comes up on incorrect pw/un or banned acc
+
+  LOGIN_TA_X1 = 210;         //Text check area
+  LOGIN_TA_Y1 = 54;
+  LOGIN_TA_X2 = 556;
+  LOGIN_TA_Y2 = 228;
+
+  LOGIN_TEXTCOLOUR = 16777215; //Color of text
+  LOGIN_STATUSCOLOUR = 65535;  //Color of text
+
+
+const
+  MaxInt = High(Integer);
+
+{ input }
+const
+  MOUSE_MOVE = 3;
+  VK_ENTER = {$IFDEF LINUX}10{$ELSE}VK_RETURN{$ENDIF};
+
+{ const GameTab Constants;
+  Description: Constants representing gametab numbers. }
+const
+  TAB_COMBAT  = 21;
+  TAB_STATS   = 22;
+  TAB_QUEST   = 23;
+  TAB_INV     = 24;
+  TAB_EQUIP   = 25;
+  TAB_PRAYER  = 26;
+  TAB_MAGIC   = 27;
+  TAB_CLAN    = 28;
+  TAB_FRIENDS = 29;
+  TAB_IGNORE  = 30;
+  TAB_LOGOUT  = 31;
+  TAB_OPTIONS = 32;
+  TAB_EMOTES  = 33;
+  TAB_MUSIC   = 34;
+
+var
+  count_Login : Integer;
+
+var
+  Me : TPlayer;
+
+{ const AeroLib procedures Constants; }
+const
+  al_AntiBan          = 0;  // Your AntiBan procedure to be called during various functions and procedures. (Flag, FFlag)
+  al_OnFindMod        = 1;  // After a player or Jagex mod is detected talking in the chat box.
+  al_OnFindDead       = 2;  // After the text 'Oh dear you are dead' is detected.
+  al_OnFindFight      = 3;  // After detecting a fighting random.
+  al_OnFindTrade      = 4;  // After the trade has been attempted (either success or failure).
+  al_OnSendStats      = 5;  // After STATS are sent to the server.
+  al_OnRandomCall     = 6;  // Called in FindNormalRandoms, FindInventoryRandoms, FindNonInventoryRandoms. (NOT ONLY WHEN RANDOMS ARE DETECTED).
+  al_OnFindRandom     = 7;  // After a random event is detected. (FNR, FIR, FNIR, FT)
+  al_OnLogOut         = 8;  // Just before the player is logged out.
+  al_OnExitToLobby    = 9;  // On exit to lobby
+  al_OnLogIn          = 10; // Right after player has successfully logged in.
+  al_OnRSUpdate       = 11; // Called in loginPlayer() if RuneScape updates.
+
+{ var AL_Procs: array [0..11] of procedure();
+  Description: Varibles to store user-defined procs to be called. }
+var
+  AL_Procs            : Array [0..11] of procedure();
+  AL_OnFindRandomCall : function(var Cont : boolean) : boolean;
+  AL_CombatRandoms    : Boolean;
+  AL_runDirection     : TStringArray;
+
+(*
+AL_HasProc
+
+.. code-block:: pascal
+
+    function AL_HasProc(): boolean;
+
+Checks if userproc is defined at index.
+
+.. note::
+
+    by SRL Dev Team
+
+Example:
+
+.. code-block:: pascal
+
+*)
+function AL_HasProc(Index: Integer): Boolean;
+begin
+  if (Index >= Low(AL_Procs)) and (Index <= High(AL_Procs)) then
+    Result := @AL_Procs[Index] <> nil;
+end;

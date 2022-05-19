@@ -1,0 +1,672 @@
+{
+======
+Object
+======
+}
+
+Const
+  PATH_OBJDB = AL_INCPATH+'/entities/object/ObjectDB.txt';
+
+Var
+  LoadedObjList : Array of TMSObject;
+
+{==============================================================================]
+                      TMSObject.create (procedure)
+* Explanation  : Creates a TMSObject type
+* Parameters   :
+    _Name      : Name to assign to the TMSObject
+    _UpText    : Array of UpText to check while searching for object
+    _InnerCols : Array of TColEx to search for (most unique colors of the Obj)
+    _OuterCols : Array of TColEx near with the InnerCols
+    _MinCount  : Minimum color count (Inner color)
+    _Height    : Size of object (Y axis)
+    _Width     : Size of object (X axis)
+    _SizeTol   : Size tolerance for height and width
+[==============================================================================}
+
+procedure TMSObject.Nullify();
+begin
+  Self.Name      := '';
+  Self.UpText    := [''];
+  Self.InnerCols := [];
+  Self.OuterCols := [];
+  Self.MinCount  := 0;
+  Self.Height    := 0;
+  Self.Width     := 0;
+  Self.SizeTol   := 0;
+end;
+
+procedure TMSObject.create(_Name: string; _UpText: TStringArray; _InnerCols, _OuterCols: Array of TColEx; _MinCount, _Height, _Width, _SizeTol: Integer);
+begin
+  Self.Name      := _Name;
+  Self.UpText    := _Uptext;
+  Self.InnerCols := _InnerCols;
+  Self.OuterCols := _OuterCols;
+  Self.MinCount  := _MinCount;
+  Self.Height    := _Height;
+  Self.Width     := _Width;
+  Self.SizeTol   := _SizeTol;
+end;
+
+procedure TMSObject.create(_Name: string; _UpText: TStringArray; _InnerCols: Array of TColEx; _MinCount, _Height, _Width, _SizeTol: Integer); overload;
+begin
+  Self.Name      := _Name;
+  Self.UpText    := _Uptext;
+  Self.InnerCols := _InnerCols;
+  Self.OuterCols := [];
+  Self.MinCount  := _MinCount;
+  Self.Height    := _Height;
+  Self.Width     := _Width;
+  Self.SizeTol   := _SizeTol;
+end;
+
+procedure TMSObject.create(_Name: string; _UpText: TStringArray; _InnerCols: Array of TColEx; _Height, _Width, _SizeTol: Integer); overload;
+begin
+  Self.Name      := _Name;
+  Self.UpText    := _Uptext;
+  Self.InnerCols := _InnerCols;
+  Self.OuterCols := [];
+  Self.MinCount  := 0;
+  Self.Height    := _Height;
+  Self.Width     := _Width;
+  Self.SizeTol   := _SizeTol;
+end;
+
+procedure TMSObject.create(_Name: string; _UpText: TStringArray; _InnerCols, _OuterCols: Array of TColEx); overload;
+begin
+  Self.Name      := _Name;
+  Self.UpText    := _Uptext;
+  Self.InnerCols := _InnerCols;
+  Self.OuterCols := _OuterCols;
+  Self.MinCount  := 0;
+  Self.Height    := 0;
+  Self.Width     := 0;
+  Self.SizeTol   := 0;
+end;
+
+procedure TMSObject.create(_Name: string; _UpText: TStringArray; _InnerCols: Array of TColEx); overload;
+begin
+  Self.Name      := _Name;
+  Self.UpText    := _Uptext;
+  Self.InnerCols := _InnerCols;
+  Self.OuterCols := [];
+  Self.MinCount  := 0;
+  Self.Height    := 0;
+  Self.Width     := 0;
+  Self.SizeTol   := 0;
+end;
+
+function TMSObject.doesExist(): Boolean;
+var
+  i : Integer;
+begin
+  for i:=0 to high(LoadedObjList) do
+    if (LoadedObjList[i].Name = Self.Name) then
+      Exit(True);
+end;
+
+procedure TMSObject.saveToDB(Force: Boolean);
+var
+  sIndex    : String;
+  tmpI,tmpO : TColEx;
+  i         : integer;
+begin
+  if not Force then
+    if Self.doesExist() then
+    begin
+      warn('TMSObject ('+Self.Name+') already exists', WT_CORE);
+      Exit;
+    end;
+
+// Check if index already exists
+  sIndex := readINI('ObjectDB_Main', 'Count', PATH_OBJDB);
+
+// Increase total count
+  sIndex := toStr(strToInt(sIndex)+1);
+  writeINI('ObjectDB_Main', 'Count', sIndex, PATH_OBJDB);
+
+// Write object name & uptext
+  writeINI('MSObj_'+sIndex, 'Name', Self.Name, PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'UpText(C)', toStr(length(Self.UpText)), PATH_OBJDB);
+  for i := 0 to high(Self.UpText) do
+    WriteINI('MSObj_'+sIndex, 'UpText[' + intToStr(I) + ']', Self.UpText[i], PATH_OBJDB);
+// Append TMSObject type
+  tmpI := Self.InnerCols[0];
+  tmpO := Self.OuterCols[0];
+// MSObj inner color
+  writeINI('MSObj_'+sIndex, 'ColI', toStr(tmpI.Col), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'TolI', toStr(tmpI.Tol), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'hModI', toStr(tmpI.hMod), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'sModI', toStr(tmpI.sMod), PATH_OBJDB);
+// MSObj outer color
+  writeINI('MSObj_'+sIndex, 'ColO', toStr(tmpO.Col), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'TolO', toStr(tmpO.Tol), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'hModO', toStr(tmpO.hMod), PATH_OBJDB);
+  writeINI('MSObj_'+sIndex, 'sModO', toStr(tmpO.sMod), PATH_OBJDB);
+// MSObj sizes
+  if (Self.MinCount > 0) then
+    writeINI('MSObj_'+sIndex, 'MinCount', toStr(Self.MinCount), PATH_OBJDB);
+  if (Self.Height > 0) then
+    writeINI('MSObj_'+sIndex, 'Height', toStr(Self.Height), PATH_OBJDB);
+  if (Self.Width > 0) then
+    writeINI('MSObj_'+sIndex, 'Width', toStr(Self.Width), PATH_OBJDB);
+  if (Self.SizeTol > 0) then
+    writeINI('MSObj_'+sIndex, 'SizeTol', toStr(Self.SizeTol), PATH_OBJDB);
+end;
+
+procedure TMSObject.saveToDB(); overload;
+begin
+  Self.saveToDB(False);
+end;
+
+procedure loadObjDB();
+var
+  sIndex    : String;
+  i,h,count : Integer;
+  tmpObj    : TMSObject;
+begin
+  sIndex := readINI('ObjectDB_Main', 'Count', PATH_OBJDB);
+  if (strToInt(sIndex) < 1) then Exit;
+
+  for i:=1 to strToInt(sIndex) do
+  begin
+    setArrayLength(LoadedObjList, Length(LoadedObjList)+1);
+
+    with tmpObj do
+    begin
+      Name   := readINI('MSObj_'+toStr(i), 'Name', PATH_OBJDB);
+      count  := strToIntDef(readINI('MSObj_'+toStr(i), 'UpText(C)', PATH_OBJDB), 0);
+
+      setArrayLength(UpText, count);
+      for h:=0 to (count-1) do
+        UpText[h] := readINI('MSObj_'+toStr(i), 'UpText[' + intToStr(h) + ']', PATH_OBJDB);
+
+      setLength(InnerCols, 1);
+      setLength(OuterCols, 1);
+      InnerCols[0].Col  := strToInt(readINI('MSObj_'+toStr(i), 'ColI', PATH_OBJDB));
+      InnerCols[0].Tol  := strToInt(readINI('MSObj_'+toStr(i), 'TolI', PATH_OBJDB));
+      try
+        InnerCols[0].hMod := strToFloat(readINI('MSObj_'+toStr(i), 'hModI', PATH_OBJDB));
+        InnerCols[0].sMod := strToFloat(readINI('MSObj_'+toStr(i), 'sModI', PATH_OBJDB));
+      except
+      end;
+      try
+        OuterCols[0].Col  := strToInt(readINI('MSObj_'+toStr(i), 'ColO', PATH_OBJDB));
+        OuterCols[0].Tol  := strToInt(readINI('MSObj_'+toStr(i), 'TolO', PATH_OBJDB));
+      except
+      end;
+      try
+        OuterCols[0].hMod := strToFloat(readINI('MSObj_'+toStr(i), 'hModO', PATH_OBJDB));
+        OuterCols[0].sMod := strToFloat(readINI('MSObj_'+toStr(i), 'sModO', PATH_OBJDB));
+      except
+      end;
+
+      try
+        MinCount:= strToInt(readINI('MSObj_'+toStr(i), 'MinCount', PATH_OBJDB));
+      except
+      end;
+      try
+        Height  := strToInt(readINI('MSObj_'+toStr(i), 'Height', PATH_OBJDB));
+        Width   := strToInt(readINI('MSObj_'+toStr(i), 'Width', PATH_OBJDB));
+        SizeTol := strToInt(readINI('MSObj_'+toStr(i), 'SizeTol', PATH_OBJDB));
+      except
+      end;
+    end;
+
+    LoadedObjList[High(LoadedObjList)] := tmpObj;
+  end;
+
+  if (strToInt(sIndex) >= 2) then
+    warn('Loaded '+sIndex+' MSObjects.', WT_CORE)
+  else
+    warn('Loaded '+sIndex+' MSObject.', WT_CORE);
+end;
+
+function getMSObjByName(ObjName: String): TMSObject;
+var
+  i : Integer;
+begin
+  for i:=0 to high(LoadedObjList) do
+    if (LoadedObjList[i].Name = ObjName) then
+      Exit(LoadedObjList[i]);
+end;
+
+function TMSObject.findAll(DistMod: Integer; SortFrom: TPoint; var Pnts: TPointArray): Boolean;
+var
+  b       : TBox;
+  i,h,j   : Integer;
+  tpa,tmp : TPointArray;
+  atpaI,
+  atpaO   : T2DPointArray;
+begin
+  if length(Self.InnerCols) < 1 then Exit(false);
+
+  for i:=0 to high(Self.InnerCols) do
+    if Self.InnerCols[i].findAllIn(AREA_MS, tpa) then break;
+
+  if length(tpa) < 1 then Exit(false);
+  atpaI := clusterTPA(tpa, DistMod);
+  tpa   := [];
+
+  if length(Self.OuterCols) < 1 then
+  begin
+    for i:=0 to high(atpaI) do
+    begin
+      if (Self.MinCount > 0) and (length(atpaI[i]) < Self.MinCount) then
+        continue;
+
+      if (Self.Height > 0) and (Self.Width > 0) then
+      begin
+        b := atpaI[i].getBounds();
+        if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+            inRange(B.Width, Self.Width-SizeTol, Self.Width+SizeTol)) then
+        begin
+          setArrayLength(tpa, Length(tpa)+1);
+          tpa[High(tpa)] := atpaI[i].midPnt();
+        end;
+      end else
+      begin
+        setArrayLength(tpa, Length(tpa)+1);
+        tpa[High(tpa)] := atpaI[i].midPnt();
+      end;
+    end;
+  end else
+  begin
+    for i:=0 to high(Self.OuterCols) do
+      if Self.OuterCols[i].findAllIn(AREA_MS, tpa) then break;
+
+    if length(tpa) < 1 then Exit(false);
+    atpaO := clusterTPA(tpa, DistMod);
+    tpa   := [];
+
+    for i:=0 to high(atpaI) do
+      for h:=0 to high(atpaO) do
+      begin
+        tmp := CopyTPA(atpaI[i]);
+        for j:=0 to high(tmp) do
+          if NearbyPointInArray(tmp[j], DistMod, atpaO[h]) then
+          begin
+            if (Self.MinCount > 0) and (length(tmp) < Self.MinCount) then
+              continue;
+            if (Self.Height > 0) and (Self.Width > 0) then
+            begin
+              b := atpaO[h].getBounds();
+              if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+                  inRange(B.Height, Self.Width-SizeTol, Self.Width+SizeTol)) then
+              begin
+                setArrayLength(tpa, Length(tpa)+1);
+                tpa[High(tpa)] := tmp.midPnt();
+              end;
+            end else
+            begin
+              setArrayLength(tpa, Length(tpa)+1);
+              tpa[High(tpa)] := tmp.midPnt();
+            end;
+            break;
+          end;
+      end;
+  end;
+
+  if (length(tpa) < 1) then exit(false);
+  result := true;
+  sortTPAFrom(tpa, SortFrom);
+  Pnts := tpa;
+end;
+
+function TMSObject.findAllIn(Area:TBox=AREA_MS; DistMod: Integer; SortFrom: TPoint; var Pnts: TPointArray): Boolean;
+var
+  b       : TBox;
+  i,h,j   : Integer;
+  tpa,tmp : TPointArray;
+  atpaI,
+  atpaO   : T2DPointArray;
+begin
+  if length(Self.InnerCols) < 1 then Exit(false);
+  for i:=0 to high(Self.InnerCols) do
+    if Self.InnerCols[i].findAllIn(Area, tpa) then break;
+
+  if length(tpa) < 1 then Exit(false);
+  atpaI := clusterTPA(tpa, DistMod);
+  tpa   := [];
+
+  if length(Self.OuterCols) < 1 then
+  begin
+    for i:=0 to high(atpaI) do
+    begin
+      if (Self.MinCount > 0) and (length(atpaI[i]) < Self.MinCount) then
+        continue;
+
+      if (Self.Height > 0) and (Self.Width > 0) then
+      begin
+        b := atpaI[i].getBounds();
+        if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+            inRange(B.Width, Self.Width-SizeTol, Self.Width+SizeTol)) then
+        begin
+          setArrayLength(tpa, Length(tpa)+1);
+          tpa[High(tpa)] := atpaI[i].midPnt();
+        end;
+      end else
+      begin
+        setArrayLength(tpa, Length(tpa)+1);
+        tpa[High(tpa)] := atpaI[i].midPnt();
+      end;
+    end;
+  end else
+  begin
+    for i:=0 to high(Self.OuterCols) do
+      if Self.OuterCols[i].findAllIn(Area, tpa) then break;
+
+    if length(tpa) < 1 then Exit(false);
+    atpaO := clusterTPA(tpa, DistMod);
+    tpa   := [];
+
+    for i:=0 to high(atpaI) do
+      for h:=0 to high(atpaO) do
+      begin
+        tmp := CopyTPA(atpaI[i]);
+        for j:=0 to high(tmp) do
+          if NearbyPointInArray(tmp[j], DistMod, atpaO[h]) then
+          begin
+            if (Self.MinCount > 0) and (length(tmp) < Self.MinCount) then
+              continue;
+            if (Self.Height > 0) and (Self.Width > 0) then
+            begin
+              b := atpaO[h].getBounds();
+              if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+                  inRange(B.Height, Self.Width-SizeTol, Self.Width+SizeTol)) then
+              begin
+                setArrayLength(tpa, Length(tpa)+1);
+                tpa[High(tpa)] := tmp.midPnt();
+              end;
+            end else
+            begin
+              setArrayLength(tpa, Length(tpa)+1);
+              tpa[High(tpa)] := tmp.midPnt();
+            end;
+            break;
+          end;
+      end;
+  end;
+
+  if (length(tpa) < 1) then exit(false);
+  result := true;
+  sortTPAFrom(tpa, SortFrom);
+  Pnts := tpa;
+end;
+
+function TMSObject.find(DistMod: Integer; SortFrom: TPoint; var Pnt: TPoint): Boolean;
+var
+  i  : Integer;
+  tpa: TPointArray;
+begin
+  if not Self.findAll(DistMod, SortFrom, tpa) then
+    exit(false);
+
+  if (length(Self.UpText) < 1)then
+  begin
+    Pnt := tpa[0];
+    exit(true);
+  end;
+
+  if (length(Self.UpText) < 2)then
+    if length(Self.UpText[0]) < 2 then
+    begin
+      Pnt := tpa[0];
+      exit(true);
+    end;
+
+  for i:=0 to high(tpa) do
+  begin
+    if isInterfaceOpen() then
+      Exit(false);
+    missMouse(tpa[i], 0, 0);
+    if waitUpTextMulti(Self.UpText, 100) then
+    begin
+      Pnt := getMousePnt();
+      exit(True);
+    end;
+  end;
+end;
+
+function TMSObject.find(var Pnt: TPoint): Boolean; overload;
+begin
+  result := Self.Find(10, MSCP, Pnt);
+end;
+
+function TMSObject.find(): Boolean; overload;
+var
+  P : TPoint;
+begin
+  result := Self.Find(10, MSCP, P);
+end;
+
+function TMSObject.findByIndex(Index: Integer; var Pnt: TPoint): Boolean;
+var
+  tpa: TPointArray;
+begin
+  if not Self.findAll(10, MSCP, tpa) then
+    exit(false);
+
+  if (length(tpa)-1) < Index then Index := high(tpa);
+  if (length(Self.UpText) < 1)then
+  begin
+    Pnt := tpa[Index];
+    exit(true);
+  end;
+
+  missMouse(tpa[Index], 0, 0);
+  if waitUpTextMulti(Self.UpText, 50) then
+  begin
+    Pnt := getMousePnt();
+    exit(true);
+  end;
+end;
+
+function findMSObjectSimple(Cols: TIntegerArray; UpTextArray: TStringArray): Boolean;
+var
+  pnt    : TPoint;
+  tmpObj : TMSObject;
+begin
+  if (length(Cols) < 1) then Exit(false);
+
+  with tmpObj do
+  begin
+    UpText := UpTextArray;
+    setLength(InnerCols, 1);
+    InnerCols[0].autoCreate(Cols);
+  end;
+
+  result := tmpObj.Find(pnt);
+end;
+
+procedure TMSObject.displayAll(DistMod: Integer=10);
+var
+  b       : TBox;
+  i,h,j   : Integer;
+  tpa,tmp : TPointArray;
+  atpaI,
+  atpaO   : T2DPointArray;
+begin
+  if length(Self.InnerCols) < 1 then Exit;
+
+  for i:=0 to high(Self.InnerCols) do
+    if Self.InnerCols[i].findAllIn(AREA_MS, tpa) then break;
+
+  if length(tpa) < 1 then Exit;
+  atpaI := clusterTPA(tpa, DistMod);
+  tpa   := [];
+
+  if length(Self.OuterCols) < 1 then
+  begin
+    for i:=0 to high(atpaI) do
+    begin
+      if (Self.MinCount > 0) and (length(atpaI[i]) < Self.MinCount) then
+        continue;
+
+      if (Self.Height > 0) and (Self.Width > 0) then
+      begin
+        b := atpaI[i].getBounds();
+        if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+            inRange(B.Width, Self.Width-SizeTol, Self.Width+SizeTol)) then
+        begin
+          FillEllipse(atpaI[i]);
+          {$IFDEF SMART}
+            OS_SMART.__Graphics.DrawTPA(FindTPAEdges(atpaI[i]), clWhite, False);
+          {$ELSE}
+            LayerBMP.DrawTPA(FindTPAEdges(atpaI[i]), clWhite);
+          {$ENDIF}
+        end;
+      end else
+      begin
+        FillEllipse(atpaI[i]);
+        {$IFDEF SMART}
+          OS_SMART.__Graphics.DrawTPA(FindTPAEdges(atpaI[i]), clWhite, False);
+        {$ELSE}
+          LayerBMP.DrawTPA(FindTPAEdges(atpaI[i]), clWhite);
+        {$ENDIF}
+      end;
+    end;
+  end else
+  begin
+    for i:=0 to high(Self.OuterCols) do
+      if Self.OuterCols[i].findAllIn(AREA_MS, tpa) then break;
+
+    if length(tpa) < 1 then Exit;
+    atpaO := clusterTPA(tpa, DistMod);
+    tpa   := [];
+
+    for i:=0 to high(atpaI) do
+      for h:=0 to high(atpaO) do
+      begin
+        tmp := CopyTPA(atpaI[i]);
+        for j:=0 to high(tmp) do
+          if NearbyPointInArray(tmp[j], DistMod, atpaO[h]) then
+          begin
+            if (Self.MinCount > 0) and (length(tmp) < Self.MinCount) then
+              continue;
+            if (Self.Height > 0) and (Self.Width > 0) then
+            begin
+              b := atpaO[h].getBounds();
+              if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+                  inRange(B.Height, Self.Width-SizeTol, Self.Width+SizeTol)) then
+              begin
+                tpa := CombineTPA(tmp, atpaO[h]);
+                FillEllipse(tpa);
+                {$IFDEF SMART}
+                  OS_SMART.__Graphics.DrawTPA(FindTPAEdges(tpa), clWhite);
+                {$ELSE}
+                  LayerBMP.DrawTPA(FindTPAEdges(tpa), clWhite);
+                {$ENDIF}
+              end;
+            end else
+            begin
+              tpa := CombineTPA(tmp, atpaO[h]);
+              FillEllipse(tpa);
+              {$IFDEF SMART}
+                OS_SMART.__Graphics.DrawTPA(FindTPAEdges(tpa), clWhite, False);
+              {$ELSE}
+                LayerBMP.DrawTPA(FindTPAEdges(tpa), clWhite);
+              {$ENDIF}
+            end;
+            break;
+          end;
+      end;
+  end;
+end;
+
+procedure TMSObject.displayNearestTo(Point: TPoint=MSCP; DistMod: Integer=10);
+var
+  b       : TBox;
+  i,h,j   : Integer;
+  tpa,tmp : TPointArray;
+  atpaI,
+  atpaO   : T2DPointArray;
+begin
+  if length(Self.InnerCols) < 1 then Exit;
+
+  for i:=0 to high(Self.InnerCols) do
+    if Self.InnerCols[i].findAllIn(AREA_MS, tpa) then break;
+
+  if length(tpa) < 1 then Exit;
+  atpaI := clusterTPA(tpa, DistMod);
+  tpa   := [];
+  SortATPAFromMidPoint(atpaI, Point);
+
+  if length(Self.OuterCols) < 1 then
+  begin
+    for i:=0 to high(atpaI) do
+    begin
+      if (Self.MinCount > 0) and (length(atpaI[i]) < Self.MinCount) then
+        continue;
+
+      if (Self.Height > 0) and (Self.Width > 0) then
+      begin
+        b := atpaI[i].getBounds();
+        if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+            inRange(B.Width, Self.Width-SizeTol, Self.Width+SizeTol)) then
+        begin
+          FillEllipse(atpaI[i]);
+          {$IFDEF SMART}
+            OS_SMART.__Graphics.DrawTPA(FindTPAEdges(atpaI[i]), clWhite, False);
+          {$ELSE}
+            LayerBMP.DrawTPA(FindTPAEdges(atpaI[i]), clWhite);
+          {$ENDIF}
+          Exit;
+        end;
+      end else
+      begin
+        FillEllipse(atpaI[i]);
+        {$IFDEF SMART}
+          OS_SMART.__Graphics.DrawTPA(FindTPAEdges(atpaI[i]), clWhite, False);
+        {$ELSE}
+          LayerBMP.DrawTPA(FindTPAEdges(atpaI[i]), clWhite);
+        {$ENDIF}
+        Exit;
+      end;
+    end;
+  end else
+  begin
+    for i:=0 to high(Self.OuterCols) do
+      if Self.OuterCols[i].findAllIn(AREA_MS, tpa) then break;
+
+    if length(tpa) < 1 then Exit;
+    atpaO := clusterTPA(tpa, DistMod);
+    tpa   := [];
+
+    tmp := CopyTPA(atpaI[0]);
+    for h:=0 to high(atpaO) do
+    begin
+      for j:=0 to high(tmp) do
+        if NearbyPointInArray(tmp[j], DistMod, atpaO[h]) then
+        begin
+          if (Self.MinCount > 0) and (length(tmp) < Self.MinCount) then
+            continue;
+          if (Self.Height > 0) and (Self.Width > 0) then
+          begin
+            b := atpaO[h].getBounds();
+            if (inRange(B.Height, Self.Height-SizeTol, Self.Height+SizeTol) and
+                inRange(B.Height, Self.Width-SizeTol, Self.Width+SizeTol)) then
+            begin
+              tpa := CombineTPA(tmp, atpaO[h]);
+              FillEllipse(tpa);
+              {$IFDEF SMART}
+                OS_SMART.__Graphics.DrawTPA(FindTPAEdges(tpa), clWhite, False);
+              {$ELSE}
+                LayerBMP.DrawTPA(FindTPAEdges(tpa), clWhite);
+              {$ENDIF}
+            end;
+          end else
+          begin
+            tpa := CombineTPA(tmp, atpaO[h]);
+            FillEllipse(tpa);
+            {$IFDEF SMART}
+              OS_SMART.__Graphics.DrawTPA(FindTPAEdges(tpa), clWhite, False);
+            {$ELSE}
+              LayerBMP.DrawTPA(FindTPAEdges(tpa), clWhite);
+            {$ENDIF}
+          end;
+          break;
+        end;
+    end;
+  end;
+end;

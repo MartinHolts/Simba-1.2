@@ -1,0 +1,413 @@
+{
+=========
+Inventory
+=========
+}
+
+(*
+InvBox
+~~~~~~
+
+.. code-block:: pascal
+
+    Function invBox(i :Integer): TBox;
+
+Returns TBox of surrounding Inventory SlotBox
+1-2-3-4
+5-6-7-8
+etc.
+
+.. note::
+
+    by Boreas
+
+Example:
+
+.. code-block:: pascal
+
+    iBox := invBox(12);
+    MMouse(randomRange(iBox.x1, iBox.x2), randomRange(iBox.y1, iBox.y2), 0, 0);
+
+*)
+function invBox(I : Integer): TBox;
+var
+  Slot1, Slot6: TBox;
+begin
+  if not inRange(I, 1, 28) then
+  begin
+    warn('Incorrect item index: ' + toStr(i), WT_CORE);
+    exit;
+  end;
+  Slot1 := toBox(563, 213, 594, 244);
+  Slot6 := toBox(605, 249, 31415, 92653);
+  Result.x1 := Slot1.X1 + ((((i + 3) mod 4)) * (Slot6.X1 - Slot1.X1));
+  Result.y1 := Slot1.Y1 + ((((i - 1) div 4)) * (Slot6.Y1 - Slot1.Y1));
+  Result.x2 := Result.x1 + (Slot1.X2 - Slot1.X1);
+  Result.y2 := Result.y1 + (Slot1.Y2 - Slot1.Y1);
+end;
+
+function pointToItem(Pnt: TPoint): Integer;
+begin
+  Result := 0;
+  if not pointInBox(Pnt, AREA_INV) then exit;
+  for Result := 1 to 28 do
+    if pointInBox(Pnt, invBox(result)) then
+      exit;
+end;
+
+(*
+ItemInSlot
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function itemInSlot(i: Integer): Boolean;
+
+Checks if item in inventory at specified position exists
+
+.. note::
+
+    by WT-Fakawi
+
+Example:
+
+.. code-block:: pascal
+
+    for i := 1 to 28 do
+      if itemInSlot(i) then
+        Inc(Count);
+
+*)
+function gameTab(Tab: Integer): Boolean; forward;
+function isDepositBoxOpen(): Boolean; forward;
+function depositItemBox(Item: Integer): TBox; forward;
+function itemInSlot(I: Integer): Boolean;
+var
+  X, Y: Integer;
+  TB: TBox;
+begin
+  if not inRange(I, 1, 28) then
+    Exit;
+  gameTab(TAB_INV);
+
+  if isDepositBoxOpen() then
+    TB := depositItemBox(I)
+  else
+    TB := invBox(I);
+  result := findColor(x, y, clOutline_black, TB.x1, TB.y1, TB.x2, TB.y2);
+end;
+
+(*
+GetInvCount
+~~~~~~~~
+
+.. code-block:: pascal
+
+    function getInvCount(): Integer;
+
+Returns amount of items in your inventory
+
+.. note::
+
+    by RsN
+
+Example:
+
+.. code-block:: pascal
+
+    totalCount := getInvCount();
+
+*)
+function getInvCount(): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 1 to 28 do
+    if (itemInSlot(I)) then
+     inc(Result);
+end;
+
+function isInvFull(): Boolean;
+begin
+  result := (getInvCount() > 27);
+end;
+
+function isInvEmpty(): Boolean;
+begin
+  result := (getInvCount() = 0);
+end;
+
+(*
+GetItemAmount
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function getItemAmount(Pnt: TPoint): Integer;
+
+Returns the amount of an item at point Pnt.  Works for
+both bank items & inventory items.
+
+.. note::
+
+    Author: Flight / Zeph, N1ke & Narcle
+    Last Modified: 24-12-2013
+
+Example:
+
+.. code-block:: pascal
+
+    var
+      i: Integer;
+    begin
+      i := getItemAmount(point(90,90));
+      Writeln('We have '+toStr(i)+' items in bank slot #1');
+    end;
+*)
+
+function getItemAmount(Pnt: TPoint): Integer;
+var
+  Box  : TBox;
+  S    : String;
+  aCol : TColEx;
+  i    : Integer;
+  TPA  : TPointArray;
+  ATPA : T2DPointArray;
+  Col  : TIntegerArray;
+begin
+  Result := 0;
+
+  Box := toBox(0,0,755,500);
+  if not pointInBox(Pnt, Box) then
+    Exit;
+  Box := toBox(Pnt.X-32,Pnt.Y-32,Pnt.X+32,Pnt.Y+32);
+  aCol.create(65536, 0);
+  if not aCol.findAllIn(Box, TPA) then
+    Exit;
+
+  Inc(Result);
+  ATPA := clusterTPA(TPA, 5);
+  if length(ATPA) < 1 then
+    Exit;
+  SortATPAFromMidPoint(ATPA, Pnt);
+
+  Box  := getTPABounds(ATPA[0]);
+  Col  := [65535, 65278, 16777215, 8453888]; // Yellow, white, green and ...?
+  Pnt  := Point(round((Box.X1+Box.X2)/2), Box.Y1);
+  Box  := toBox(Pnt.x-20, Pnt.y-15, Pnt.x+20, Pnt.y+15);
+  TPA  := [];
+  ATPA := [];
+
+  for i:=0 to High(Col) do
+  begin
+    aCol.create(Col[i], 0);
+    if aCol.findAllIn(Box, TPA) then
+    begin
+      S := getTextAtEx(Box.X1, Box.Y1, Box.X2, Box.Y2, 0, 1, 1, Col[i], 0, 'StatChars07');
+      Result := strToIntDef(GetNumbers(S), 1);
+      Case I of
+        2: Result := Result * 1000;
+        3: Result := Result * 1000000;
+      end;
+      Exit;
+   end;
+  end;
+end;
+
+function interactSlot(Slot: Integer; action: Variant; miss: Boolean=False): Boolean;
+begin
+  result := false;
+  if (not itemInSlot(Slot)) then
+    if not variantIsInteger(action) then
+      exit;
+
+  if (not mouseInBox(invBox(Slot))) then
+    if miss then
+      mouseBox2(invBox(Slot), MOUSE_MOVE)
+    else
+      mouseBox(invBox(Slot), MOUSE_MOVE);
+
+  if variantIsInteger(action) then
+  begin
+    if (action = MOUSE_MOVE) then
+      exit(true);
+    if action = MOUSE_LEFT then
+    begin
+      fastClick(MOUSE_LEFT);
+      exit(true);
+    end;
+  end;
+
+  fastClick(MOUSE_RIGHT);
+  if variantIsString(action) then
+    result := waitOption(action, 200)
+  else
+    result := true;
+end;
+
+function fastDropSlots(Slots: TIntegerArray): Boolean;
+var
+  i : Integer;
+begin
+  if length(slots) < 1 then Exit(false);
+  if not isKeyDown(VK_SHIFT) then
+    keyDown(VK_SHIFT);
+
+  if (not mouseInBox(invBox(slots[i]))) then
+    mouseBox(invBox(slots[i]), MOUSE_MOVE);
+  if not isUpText('Drop') then
+    keyDown(VK_SHIFT);
+
+  for i:=0 to high(slots) do
+  begin
+    if (not mouseInBox(invBox(slots[i]))) then
+      mouseBox(invBox(slots[i]), MOUSE_MOVE);
+    fastClick(MOUSE_LEFT);
+  end;
+
+  keyUp(VK_SHIFT);
+  if isKeyDown(VK_SHIFT) then
+    keyUp(VK_SHIFT);
+  result := True;
+end;
+
+(*
+fastDropAllExcept
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function fastDropAllExcept(Items: TItemArray): Boolean;
+
+Drops all items in your inventory that arent listed in the Array of Titem's.
+
+.. note::
+
+    Author: Dan the man
+
+
+Example:
+
+.. code-block:: pascal
+
+    if FastDropAllExcept([Apples, Oranges, Redberries]) then
+      writeln('dropped everything except Apples');
+*)
+
+function fastDropAllExcept(Items: TItemArray): Boolean;
+var
+  i, a : Integer;
+  Slots: TIntegerArray;
+  Found: boolean;
+begin
+  if isInvEmpty() then Exit;
+
+  if not isKeyDown(VK_SHIFT) then
+    keyDown(VK_SHIFT);
+  for i:=1 to 28 do
+    if itemInSlot(i) then
+      for a:=0 to high(Items) do
+        if not Items[a].InSlot(i) then
+        begin
+          if (not mouseInBox(invBox(slots[i]))) then
+            mouseBox(invBox(Slots[i]), MOUSE_MOVE);
+          fastClick(MOUSE_LEFT);
+          result := True;
+        end;
+
+  keyUp(VK_SHIFT);
+  if isKeyDown(VK_SHIFT) then
+    keyUp(VK_SHIFT);
+end;
+
+procedure moveItemTo(Slot, targetSlot: Integer);
+var
+  b,b2 : TBox;
+begin
+  if not itemInSlot(Slot) then exit;
+  b  := invBox(Slot);
+  b2 := invBox(targetSlot);
+  dragMouseBox(b, b2);
+end;
+
+procedure dragItemToPoint(Slot: Integer; Point: TPoint);
+begin
+  if not itemInSlot(Slot) then exit;
+  dragMouseToPoint(Point);
+end;
+
+(*
+SlotActivated
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function slotActivated(Slot: Integer): Boolean;
+
+Checks if item in specified inventory slot has a white outline.
+Returns True if the item has a white outline, otherwise returns false.
+
+.. note::
+
+    by marpis
+
+Example:
+
+.. code-block:: pascal
+
+    Result := slotActivated(4);
+
+*)
+function slotActivated(Slot: Integer): Boolean;
+var
+  x,y : Integer;
+  TB  : TBox;
+begin
+  result := false;
+  if not inRange(Slot, 1, 28) then
+  begin
+    warn('Incorrect item index: ' + toStr(Slot), WT_CORE);
+    exit;
+  end;
+  if not gameTab(TAB_INV) then
+    exit;
+  TB := invBox(Slot);
+  Result := findColor(x, y, clOutline_white, TB.x1, TB.y1, TB.x2, TB.y2);
+end;
+
+function anySlotActivated(): Boolean;
+var
+  i : Integer;
+begin
+  result := false;
+  for i:=1 to 28 do
+    if slotActivated(i) then exit(True);
+end;
+
+function waitInvChange(MaxTime: Integer): Boolean;
+var
+  T        : Timer;
+  tmpCount : Integer;
+begin
+  tmpCount := getInvCount();
+  T.Start();
+  while (T.timeElapsed() < MaxTime) do
+    if tmpCount <> getInvCount() then
+      exit(True);
+end;
+
+procedure waitInvStopChange(MaxTime: Integer);
+var
+  T        : Timer;
+  tmpCount : Integer;
+begin
+  tmpCount := getInvCount();
+  T.Start();
+  while (T.timeElapsed() < MaxTime) and (not isInvFull()) do
+    if (tmpCount <> getInvCount()) then
+    begin
+      tmpCount := getInvCount();
+      T.Start();
+    end;
+end;

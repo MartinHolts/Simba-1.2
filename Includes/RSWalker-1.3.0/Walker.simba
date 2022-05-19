@@ -1,0 +1,614 @@
+{==============================================================================]
+  Author: Jarl K. Holta
+  Project: RSWalker 
+  Project URL: https://github.com/WarPie/RSWalker
+  License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
+[==============================================================================}
+{$IFDEF HINTS}{$DEFINE !HAD_HINTS}{$H-}{$ENDIF}
+
+{$IFDEF WIN32}
+  {$loadlib ../Includes/RSWalker/libWalker.dll}
+{$ENDIF}
+
+{$IFDECL TMEMSCAN}
+  {$include_once MemScan.pas}
+{$ENDIF}
+
+{$include_once Utilities.pas}
+
+
+type
+  PRSWalker = ^TRSWalker;
+
+  TOnWalkEvent = procedure(Sender: PRSWalker; MyPos: TPoint);
+  TOnMoveEvent = procedure(Sender: PRSWalker);
+  
+  TRSWalker = record
+  //internals
+    WorldMap, WorldSample: TMufasaBitmap;
+    LocalMap: TMufasaBitmap;
+
+    FGlobal: TPoint;           // memscan related variable
+    FBaseOffset: TPoint;       // start of map slices
+    FPath: TPointArray;        // current path, set by calling WalkPath
+    FPathIdx: Int32;           // current index in current path.
+  
+  //adjustable or otherwise useful variables
+    TMFormula: ETMFormula;
+    ScanRatio: Byte;
+    Similarity: Double;
+
+    MinimapShift: Int32;       // the minimum pixelshift for isMoving-tests 
+    SkipClose: Int32;          // how near the flag before it can click next point
+    MinRunEnergy: Int32;       // minimum run energy before it can toggle run
+    KeepMouseActive: Boolean;  // unused
+    ScreenWalk: Boolean;       // walk using mainscreen rather than minimap
+    Graph: TWebGraph;          // wab walking graph, you can load your own graph.
+  
+  //hooks
+    onWalkEvent: TOnWalkEvent;
+    onMoveEvent: TOnMoveEvent;
+  
+  //core switch, can be toggled off to stop walking mid walk [toggles on automatically by walking with RSW]
+    Enabled: Boolean;
+  end;
+
+{$IFNDEF CODEINSIGHT}
+var
+  RSWPath: String := {$macro CURRENT_FILE};
+  ___TMP_TSA: TStringArray;
+begin
+  ___TMP_TSA := Explode({$IFDEF WINDOWS}'\'{$ELSE}'/'{$ENDIF}, RSWPath);
+  SetLength(___TMP_TSA, Length(___TMP_TSA)-1);
+  RSWPath := Implode('/', ___TMP_TSA) + '/';
+end;
+{$ENDIF}
+  
+var
+  RSW_SEARCH_PATHS: TStringArray := [
+     '',
+     IncludePath,
+     IncludePath+'maps/',
+     RSWPath+'maps/',
+     RSWPath+'maps/world/',
+     RSWPath+'maps/zeah/'
+  ];
+
+
+{implementation}
+
+
+procedure TRSWalker.SetDefaultValues();
+begin
+  onWalkEvent    := nil;
+  onMoveEvent    := nil;
+  SkipClose      := 30;
+  MinRunEnergy   := 20;
+  Graph          := RSW_Graph;
+  MinimapShift   := 220;
+  Enabled        := True;
+end;
+
+function TRSWalker.TryGetClientID(): UInt32; static;
+begin
+  Result := 0;
+  {$IFDECL TMEMSCAN}
+    {$IFDEF SMART}
+      Result := SMART.PID;
+    {$ELSE}
+      Result := GetWindowProcessID( Client.GetIOManager().GetKeyMouseTarget().GetHandle() );
+    {$ENDIF}
+  {$ENDIF}
+end;
+
+function TRSWalker.FindMapPath(path:String; IsDir: Boolean = False): String;
+var
+  testPath:String;
+begin
+  if not IsDir then
+  begin
+    for testPath in RSW_SEARCH_PATHS do
+      if FileExists(testPath+path) then
+        Exit(testPath);
+  end else
+    for testPath in RSW_SEARCH_PATHS do
+      if DirectoryExists(testPath+path) then
+        Exit(testPath);
+
+  raise 'TRSWalker.Init -> Map `'+result+'` not found';
+end;
+
+procedure TRSWalker.Init(World: String; AScanRatio:Int32=6);
+var
+  BMP: TMufasaBitmap;
+begin
+  Self.ScanRatio := AScanRatio;
+  Self.TMFormula := TM_CCOEFF_NORMED;
+  Self.SetDefaultValues();
+
+  if world <> '' then
+  begin
+    WorldMap.Init(client.GetMBitmaps);
+    WorldMap.LoadFromFile(FindMapPath(world)+world);
+    WorldSample.Init(client.GetMBitmaps);
+    WorldMap.Downsample(Self.ScanRatio, WorldSample);
+  end else
+    Self.Enabled := False;
+end;
+
+procedure TRSWalker.InitEx(Name: String; Slices: TPointArray; AScanRatio:Int32=6);
+var
+  BMP: TMufasaBitmap;
+  Folder: String;
+begin
+  Self.ScanRatio := AScanRatio;
+  Self.TMFormula := TM_CCOEFF_NORMED;
+  Self.SetDefaultValues();
+
+  Folder := FindMapPath(Name, True);
+  Self.WorldMap := RSWUtils.AssembleSlices(Folder + Name, Slices, Self.FBaseOffset);
+  Self.WorldSample.Init(client.GetMBitmaps);
+  Self.WorldMap.Downsample(Self.ScanRatio, Self.WorldSample);
+
+  Self.Graph.BlockOutside(Slices);
+end;
+
+procedure TRSWalker.Free();
+begin
+  FBaseOffset := [0,0];
+  WorldMap.Free();
+  WorldSample.Free();
+  WorldMap := nil;
+  WorldSample := nil;
+end;
+
+function TRSWalker.SetFormula(Formula: ETMFormula): TPoint;
+begin
+  Self.TMFormula := Formula;
+end;
+
+// Cross correlation without any resizing around an area.
+function TRSWalker.FindImageNear(p:TPoint; Large, Sub: TMufasaBitmap; Area:Int32): TPoint;
+var
+  W,H: Int32;
+  Slice: TMufasaBitmap;
+  B: TBox;
+begin
+  W := Large.GetWidth - 1;
+  H := Large.GetHeight - 1;
+
+  B := [p.x, p.y, p.x + Sub.GetWidth(), p.y + Sub.GetHeight()];
+  B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
+  B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
+
+  Slice := Large.Copy(B.x1, B.y1, B.x2, B.y2);
+  client.getMBitmaps.AddBMP(Slice);
+  try
+    Result := Slice.MatchTemplate(Sub, Self.TMFormula).ArgMax();
+    Result := [Result.x-Area+p.x, Result.y-Area+p.y];
+  finally
+    Slice.Free();
+  end;
+end;
+
+{
+  Returns the current position of our character when NOT using memscan
+  - For normal usage use TRSWalker.GetMyPos 
+}
+function TRSWalker._GetPos(): TPoint;
+var
+  mmsample, minimap: TMufasaBitmap;
+  xcorr: TSingleMatrix;
+  best: TPoint;
+begin
+  minimap := RSWUtils.GetMinimap(True, False);
+  mmsample.Init(client.GetMBitmaps);
+  minimap.Downsample(Self.ScanRatio, mmsample);
+
+  try
+    xcorr   := WorldSample.MatchTemplate(mmsample, Self.TMFormula);
+    best    := xcorr.ArgMax();
+
+    Result   := Self.FindImageNear(best * Self.ScanRatio, WorldMap, Minimap, 20);
+    Result.X += minimap.GetWidth()  div 2;
+    Result.Y += minimap.GetHeight() div 2;
+
+    Self.Similarity := xcorr[best.Y, best.X];
+  finally
+    minimap.Free();
+    mmsample.Free();
+  end;
+end;
+
+
+(*
+  Returns our characters current position. 
+  @note: If `minSimiliarty` is set it will return (-1,-1) when it's less similar than what's expected.
+*)
+function TRSWalker.GetMyPos(minSimiliarty: Double = -$FFFFFFF): TPoint;
+begin
+  if self.WorldMap = nil then
+    RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
+  
+  Result := self._GetPos();
+
+  Result += Self.FBaseOffset;
+  if (Self.Similarity < minSimiliarty) then
+    Exit(Point(-1,-1));
+end;
+
+(*
+  Returns the tile position on the mainscreen as a rectangle
+*)
+function TRSWalker.GetTileMSEx(Me, Loc: TPoint; Height:Double=0; Offx,Offy:Double=0): TRectangle;
+var
+  angle: Double;
+begin
+  Loc   := Point(MM2MS.MMCX, MM2MS.MMCY) + (Loc - Me);
+  angle := Minimap.GetCompassAngle(False);
+  Loc   := Loc.Rotate(angle, Point(MM2MS.MMCX, MM2MS.MMCY));
+  Result := Minimap.VecToMSRect(Vec3(Loc.x - offx, Loc.y - offy, Height), angle);
+end;
+
+(*
+  Same as the above, only you dont have to pass "MyPos" to it.
+*)
+function TRSWalker.GetTileMS(Loc: TPoint; Height:Double=0; Offx,Offy:Double=0): TRectangle;
+begin
+  Result := GetTileMSEx(Self.GetMyPos(), Loc, Height, Offx, Offy);
+end;
+
+(*
+  Takes the position we are walking to in both it's forms:
+  - mmPt (click position on minimap)
+  - worldPt (goal position in the world map)
+  
+  Two hooks are called here:
+  - onMoveEvent(self)
+*)
+procedure TRSWalker.WalkToPos(mmPos:TPoint; Rnd:Int32=0; doRand:Boolean=False);
+var
+  i,st: Int64;
+  t: TCountDown;
+  flag: TPoint;
+  B: TBox;
+  skipDist: Double;
+begin
+  mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
+  skipDist := srl.SkewedRand(skipClose, 10, MM_RAD);
+  
+  if (doRand) then
+    while (Rnd > 1) and (Hypot(mmPos.x-Minimap.Center.X, mmPos.y-Minimap.Center.Y) >= MM_RAD - Rnd*Sqrt(2)) do
+      Dec(Rnd);
+
+  if not Self.ScreenWalk then
+    mouse.Click(mmPos, rnd, mouse_left)
+  else begin
+    B := Minimap.PointToMsBox(mmPos);
+    B.LimitTo(Mainscreen.GetBounds);  //fucking self-alterting procedures (I did not make these!)
+    mouse.Click(B, mouse_left);
+  end;
+
+  Wait(300,500);
+  t.Init(25000);
+  repeat
+    if  (i mod 2 = 0) and (Minimap.GetRunEnergy >= self.MinRunEnergy) then
+      Minimap.ToggleRun(True);
+
+    if Minimap.FindFlag(flag) then
+    begin
+      if (flag.DistanceTo(Minimap.Center) < skipDist) then
+        Break;
+    end else if (Self.GetMyPos().DistanceTo(FPath[FPathIdx]) < skipDist) then
+      Break;
+
+    st := GetTickCount() + Random(60);
+    if Assigned(@self.onMoveEvent) then
+      self.onMoveEvent(@self);
+    Wait( Max(1, st-GetTickCount()) );
+
+  until (not self.Enabled) or (not Minimap.IsPlayerMoving(Self.MinimapShift)) or (t.IsFinished());
+end;
+
+
+(*
+  Simple method to do 1 step on the minimap.
+*)
+function TRSWalker.WalkStep(WorldPos:TPoint; Rnd:Int32=0; WaitFlag:Boolean=True): Boolean; overload;
+var
+  mmPos, myPos: TPoint;
+  B: TBox;
+  t: TCountDown;
+begin
+  myPos := self.GetMyPos();
+  mmPos.x := (WorldPos.x - myPos.x) + minimap.Center.X;
+  mmPos.y := (WorldPos.y - myPos.y) + minimap.Center.Y;
+  if (Hypot(myPos.x-WorldPos.x, myPos.y-WorldPos.y) > MM_RAD) then
+    Exit(False);
+
+  mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
+  
+  if not Self.ScreenWalk then
+    mouse.Click(mmPos, rnd, mouse_left)
+  else begin
+    B := Minimap.PointToMsBox(mmPos);
+    B.LimitTo(Mainscreen.GetBounds);  //fucking self-alterting procedures (I did not make these!)
+    mouse.Click(B, mouse_left);
+  end;
+
+  if WaitFlag then
+  begin
+    t.Init(25000);
+    repeat
+      if Minimap.GetRunEnergy >= self.minRunEnergy then 
+        Minimap.ToggleRun(True);
+      Wait(Random(75));
+    until (not Minimap.isFlagPresent()) or t.IsFinished();
+  end;
+end;
+
+
+(*
+  Waits until your player is finished moving, while calling move event.
+*)
+procedure TRSWalker.WaitPlayerMoving(TimeOut: Int32 = 30000);
+var
+  T: UInt64;
+begin
+  T := GetTickCount() + TimeOut;
+  
+  while (T > GetTickCount()) and (Self.Enabled) do
+  begin
+    if Assigned(@Self.OnMoveEvent) then
+      Self.OnMoveEvent(@Self);
+    
+    if (not Minimap.isFlagPresent()) and (not Minimap.isPlayerMoving(Self.MinimapShift)) then
+      Break;
+    Wait(Random(50, 100));
+  end;
+end;
+
+
+(*
+ Walks a path.. returns true if we successfully walked the path, otherwise false.
+ 
+ One hook is used here:
+ - onWalkEvent(self, myPos);
+*)
+function TRSWalker.WalkPath(Path: TPointArray; ClickRnd:Int32=4; FinalCorrection:Boolean=False): Boolean;
+var
+  i,j,h,prev,tmp,attempts: Int32;
+  nearest,distance: Double;
+  mmPos, myPos: TPoint;
+  t: TCountDown;
+  
+  function RandomizeRunEnergy(e:Int32):Int32;
+  begin
+    if e > 100 then Exit();
+    Result := Random(max(5,e-10), e+10);
+  end;
+begin
+  if Self.WorldMap = nil then
+    RaiseException('TRSWalker.WalkPath -> RSWalker is not set up for this task!');
+
+  self.Enabled := True;
+  tmp := self.MinRunEnergy;
+
+  // get start point in path
+  myPos := Self.GetMyPos();
+  nearest := 100000;
+  for j:=0 to High(path) do
+  begin
+    distance := Hypot(path[j].x-myPos.x, path[j].y-myPos.y);
+    if (distance < nearest) then
+    begin
+      nearest := distance;
+      i := j;
+    end;
+  end;
+
+  // generate a dense path from starting point
+  FPath := Copy(path, i, Length(path)-i);
+  FPath := RSWUtils.BuildPath([myPos]+FPath, 1,6);
+
+  // do the walk
+  t.Init(Random(23000, 27000));
+  FPathIdx := 0;
+  H := High(FPath);
+  while (FPathIdx < H) and (not t.IsFinished())  do
+  begin
+    self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+    myPos := Self.GetMyPos();
+
+    if not Self.ScreenWalk then
+    begin
+      while (FPathIdx < H) and (Hypot(myPos.x-FPath[FPathIdx+1].x, myPos.y-FPath[FPathIdx+1].y) < MM_RAD) do
+        Inc(FPathIdx);
+    end else
+    begin
+      while (FPathIdx < H) and Mainscreen.FBounds.Contains(Minimap.PointToMs(FPath[FPathIdx+1] - myPos + minimap.Center)) do
+        Inc(FPathIdx);
+    end;
+
+    if prev = FPathIdx then
+    begin
+      Inc(attempts);
+      if attempts > 7 then
+      begin
+        self.MinRunEnergy := tmp;
+        Exit(False);
+      end;
+    end else
+      attempts := 0;
+
+    mmPos := FPath[FPathIdx] - myPos + minimap.Center;
+
+    if Assigned(@self.onWalkEvent) then
+    begin
+      self.onWalkEvent(@self, myPos);
+      if not(self.Enabled) then
+      begin
+        self.MinRunEnergy := tmp;
+        Exit(True);
+      end;
+    end;
+
+    self.WalkToPos(mmPos, ClickRnd, FPathIdx<>h);
+    if not(self.Enabled) then
+    begin
+      self.MinRunEnergy := tmp;
+      Exit(True);
+    end;
+
+    prev := FPathIdx;
+    t.Init(Random(20000, 25000));
+  end;
+
+  self.WaitPlayerMoving();
+  myPos  := Self.GetMyPos();
+  Result := Hypot(myPos.x-FPath[h].x, myPos.y-FPath[h].y) < 16;
+
+  if Result and FinalCorrection then
+  begin
+    distance := Hypot(myPos.x-FPath[h].x, myPos.y-FPath[h].y);
+    if (distance < MM_RAD) and (distance > 6) then
+    begin
+      mmPos.x := (FPath[h].x - myPos.x) + Minimap.Center.X;
+      mmPos.y := (FPath[h].y - myPos.y) + Minimap.Center.Y;
+      self.WalkToPos(mmPos, 1, True);
+      self.WaitPlayerMoving();
+    end;
+  end;
+
+  self.minRunEnergy := tmp;
+end;
+
+(*
+  Walks the path, if it fails it retries `Retries` times. Returns true if we
+  successfully walked the path, otherwise false
+*)
+function TRSWalker.WalkPath2(Path: TPointArray; Retries: Int32=3): Boolean;
+begin
+  for 1 to Retries do
+    if Self.WalkPath(Path) then
+      Exit(True)
+    else
+      Wait(600,900);
+end;
+
+
+(*
+  Uses the currenly loaded graph (by default a graph that matches world.png) to walk to desitnation
+*)
+function TRSWalker.WebWalk(Destination: TPoint; ClickRnd:Int32=4; PathRnd:Double=0; FinalCorrection:Boolean=False): Boolean;
+var
+  path: TPointArray;
+begin
+  if (PathRnd > 1) or (PathRnd < 0) then
+    RaiseException(erException, 'TRSWalker.WebWalk -> PathRnd should be in the range `0..1` where `1` is max');
+
+  path   := Self.Graph.PathBetween(Self.GetMyPos, Destination, PathRnd);
+  Result := Self.WalkPath(path, ClickRnd, FinalCorrection);
+end;
+
+function TRSWalker.WebWalk(Destination: String; ClickRnd:Int32=4; PathRnd:Double=0; FinalCorrection:Boolean=False): Boolean; overload;
+var
+  dstNode: Int32;
+begin
+  dstNode := Self.Graph.FindNode(Destination);
+  if dstNode = -1 then
+    RaiseException(erException, 'TRSWalker.WebWalk -> No node named `'+Destination+'` exists');
+
+  Result := Self.WebWalk(Self.Graph.Nodes[dstNode], ClickRnd, PathRnd, FinalCorrection);
+end;
+
+
+(*
+ Debug your current location, how accurately it's found, and the time it used to find it
+*)
+procedure TRSWalker.DebugPos();
+var
+  mx,my,x1,y1,x2,y2: Int32;
+  BMP, BMP1: TMufasaBitmap;
+  TPA: TPointArray;
+  glob: TPoint;
+  timeUsed: Double;
+begin
+  timeUsed := PerformanceTimer;
+  glob := Self.GetMyPos();
+  glob -= Self.FBaseOffset;
+  timeUsed := PerformanceTimer - timeUsed;
+
+  x1 := Max(0, glob.x-200);
+  y1 := Max(0, glob.y-200);
+  x2 := Min(x1+400, Self.WorldMap.GetWidth()-1);
+  y2 := Min(y1+400, Self.WorldMap.GetHeight()-1);
+
+  mx := glob.x - x1;
+  my := glob.y - y1;
+
+  BMP1 := Self.WorldMap.Copy(x1,y1,x2,y2);
+  client.getMBitmaps().AddBMP(BMP1);
+  BMP1.LineTo(Point(0,my), Point(x2-x1,my), $00FF00);
+  BMP1.LineTo(Point(mx,0), Point(mx,y2-y1), $00FF00);
+  BMP1.DrawBox(Box(mx-2,my-2,mx+2,my+2), False, $FFFFFF);
+
+  BMP.Init(client.GetMBitmaps);
+  BMP.SetSize(560,420);
+  BMP.DrawClear($403027);
+  BMP1.DrawTransparent(10,10, BMP);
+  BMP1.Free();
+
+
+  glob += Self.FBaseOffset;
+  {$IFDEF WINDOWS}
+    BMP.DrawSystemText(
+      '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
+      'Courier New', 13,
+      Point(422,16),
+      True, $FFFFFF);
+  {$ELSE}
+    BMP.DrawClippedText(
+      '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
+      Point(422,16),
+      'SmallChars07',
+      True, $FFFFFF);
+  {$ENDIF}
+  
+
+  BMP1 := RSWUtils.GetMinimap(True,False);
+  BMP1.DrawTransparent(426,40, BMP);
+  BMP1.Free();
+
+  {$IFDEF WINDOWS}
+    BMP.DrawSystemText(
+      'Acc '+ToStr(Round(Self.Similarity,3)),
+      'Courier New', 11,
+      Point(422,370),
+      True, $FFFFFF);
+
+    BMP.DrawSystemText(
+      'Used '+ToStr(Round(timeUsed))+' ms',
+      'Courier New', 11,
+      Point(422,396),
+      True, $FFFFFF);
+  {$ELSE}
+    BMP.DrawClippedText(
+      'Acc '+ToStr(Round(Self.Similarity,3)),
+      Point(422,370),
+      'SmallChars07',
+      True, $FFFFFF);
+    
+    BMP.DrawClippedText(
+      'Used '+ToStr(Round(Self.Similarity,3))+' ms',
+      Point(422,396),
+      'SmallChars07',
+      True, $FFFFFF);
+  {$ENDIF}
+
+  DisplayDebugImgWindow(BMP.GetWidth(), BMP.GetHeight());
+  DrawBitmapDebugImg(BMP.GetIndex());
+  BMP.Free();
+end;
+
+{$IFDEF !HAD_HINTS}{$H+}{$ENDIF}

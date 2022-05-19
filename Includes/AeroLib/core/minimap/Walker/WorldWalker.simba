@@ -1,0 +1,311 @@
+{
+===========
+WorldWalker
+===========
+}
+
+{
+  --Index--
+
+  *'ep' - Entry points array
+}
+
+Var
+  WorldWalker     : TRSWalker;
+  WW_isSetUp      : Boolean = False;
+  WW_Banks        : Array [0..8] of TWW_Bank;
+
+  WW_web_Varrock,WW_web_Alkharid,
+  WW_web_Lumbridge,WW_web_Draynor,
+  WW_web_Falador,WW_web_Edgeville,
+  WW_roads_F2P,WW_ep_Lumbridge,
+  WW_ep_Varrock,WW_ep_Draynor,
+  WW_ep_Falador,WW_ep_Edgeville,
+  WW_ep_Alkharid : TPointArray;
+
+Const
+  WW_area_Lumbridge : TBox = [4465,3242,4860,3698];
+  WW_area_Varrock   : TBox = [4409,2432,5052,3030];
+  WW_area_Draynor   : TBox = [4093,3308,4278,3557];
+  WW_area_Alkharid  : TBox = [4872,3591,5131,3904];
+  WW_area_PortSarim : TBox = [3807,3380,4082,3747];
+  WW_area_Falador   : TBox = [3541,2866,4071,3220];
+  WW_area_Edgeville : TBox = [4075,2371,4260,2597];
+
+
+procedure freeWW();
+begin
+  WorldWalker.Free();
+  WW_isSetUp := False;
+end;
+
+procedure setupWorldWalker();
+begin
+  try
+    WorldWalker.init('WorldMap');
+    WorldWalker.skipClose    := 30;
+    WorldWalker.minRunEnergy := 70;
+    WorldWalker.walkStyle    := wsSPS;
+    WorldWalker.anyAngle     := True;
+  except
+    warn('Fatal error loading WorldMap image', WT_CORE);
+    WorldWalker.Free();
+    TerminateScript;
+  end;
+
+  WW_isSetUp := True;
+  addOnTerminate('freeWW');
+
+  with WW_Banks[0] do
+  begin
+    Name     := 'Al-kharid bank';
+    Location := Point(4890, 3779);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[1] do
+  begin
+    Name     := 'Duel arena chest';
+    Location := Point(5335, 3378);
+    BankType := 'Chest';
+  end;
+  with WW_Banks[2] do
+  begin
+    Name     := 'Draynor bank';
+    Location := Point(4183, 3476);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[3] do
+  begin
+    Name     := 'Falador east bank';
+    Location := Point(3860, 3026);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[4] do
+  begin
+    Name     := 'Falador west bank';
+    Location := Point(3595, 2974);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[5] do
+  begin
+    Name     := 'Varrock east bank';
+    Location := Point(4823, 2768);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[6] do
+  begin
+    Name     := 'Varrock west bank';
+    Location := Point(4542, 2703);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[7] do
+  begin
+    Name     := 'Edgville bank';
+    Location := Point(4183, 2484);
+    BankType := 'Booth';
+  end;
+  with WW_Banks[8] do
+  begin
+    Name     := 'Grand exchange';
+    Location := Point(4468, 2503);
+    BankType := 'NPC';
+  end;
+
+  WW_web_Varrock := [Point(4657, 2938), Point(4655, 2913), Point(4655, 2887), Point(4657, 2864), Point(4639, 2854),
+                     Point(4654, 2850), Point(4654, 2824), Point(4652, 2797), Point(4678, 2789), Point(4654, 2779),
+                     Point(4655, 2754), Point(4661, 2736), Point(4640, 2735), Point(4617, 2735), Point(4619, 2715),
+                     Point(4592, 2730), Point(4564, 2732), Point(4541, 2731), Point(4541, 2708), Point(4541, 2688),
+                     Point(4542, 2671), Point(4540, 2649), Point(4525, 2632), Point(4506, 2621), Point(4486, 2607),
+                     Point(4472, 2583), Point(4473, 2560), Point(4473, 2536), Point(4474, 2511), Point(4468, 2500),
+                     Point(4520, 2732), Point(4493, 2733), Point(4659, 2714), Point(4660, 2688), Point(4659, 2663),
+                     Point(4659, 2646), Point(4660, 2622), Point(4661, 2600), Point(4661, 2583), Point(4679, 2594),
+                     Point(4710, 2593), Point(4725, 2599), Point(4728, 2587), Point(4755, 2588), Point(4779, 2590),
+                     Point(4789, 2603), Point(4793, 2631), Point(4795, 2650), Point(4794, 2672), Point(4791, 2695),
+                     Point(4794, 2719), Point(4792, 2734), Point(4769, 2733), Point(4748, 2730), Point(4726, 2730),
+                     Point(4707, 2733), Point(4686, 2732), Point(4676, 2752), Point(4675, 2720), Point(4727, 2705),
+                     Point(4738, 2757), Point(4815, 2735), Point(4828, 2737), Point(4823, 2766), Point(4856, 2736),
+                     Point(4884, 2737), Point(4909, 2737), Point(4929, 2738), Point(4948, 2751), Point(4954, 2776),
+                     Point(4958, 2799), Point(4973, 2821), Point(4977, 2849), Point(4976, 2878), Point(4976, 2907),
+                     Point(4979, 2933), Point(4975, 2947), Point(4963, 2964), Point(4956, 2983), Point(4561, 2750),
+                     Point(4859, 2753), Point(4860, 2773), Point(4858, 2792), Point(4845, 2809), Point(4841, 2830),
+                     Point(4838, 2847), Point(4821, 2845), Point(4495, 2755), Point(4495, 2776), Point(4495, 2796),
+                     Point(4496, 2818), Point(4495, 2842), Point(4495, 2865), Point(4506, 2880), Point(4519, 2893),
+                     Point(4524, 2911), Point(4530, 2929), Point(4548, 2936), Point(4546, 2955), Point(4945, 2727),
+                     Point(4955, 2706), Point(4956, 2685), Point(4958, 2663), Point(4962, 2640), Point(4966, 2624),
+                     Point(4983, 2609), Point(4997, 2596), Point(5010, 2583), Point(4992, 2581), Point(4996, 2557),
+                     Point(5007, 2541), Point(5015, 2522), Point(5021, 2506), Point(5021, 2486)];
+
+  WW_web_Alkharid :=[Point(4884, 3538), Point(4902, 3551), Point(4910, 3563), Point(4924, 3576), Point(4940, 3588),
+                     Point(4948, 3605), Point(4893, 3559), Point(4897, 3576), Point(4900, 3598), Point(4902, 3618),
+                     Point(4906, 3641), Point(4917, 3657), Point(4930, 3671), Point(4933, 3688), Point(4910, 3684),
+                     Point(4935, 3705), Point(4918, 3705), Point(4934, 3723), Point(4921, 3726), Point(4902, 3725),
+                     Point(4919, 3743), Point(4915, 3762), Point(4906, 3777), Point(4889, 3776), Point(4955, 3723),
+                     Point(4979, 3728), Point(4982, 3751), Point(4961, 3693), Point(5001, 3728), Point(5023, 3726),
+                     Point(5045, 3725), Point(5068, 3722), Point(5048, 3746), Point(5074, 3748), Point(5059, 3765),
+                     Point(5067, 3777), Point(5073, 3799), Point(5048, 3700), Point(5071, 3681), Point(5091, 3672),
+                     Point(4947, 3663), Point(4974, 3649), Point(5002, 3644), Point(5010, 3628), Point(5015, 3599),
+                     Point(5017, 3574), Point(5017, 3548), Point(5022, 3524), Point(5029, 3504), Point(5047, 3508),
+                     Point(5073, 3507), Point(5085, 3494), Point(5096, 3480), Point(5106, 3462), Point(5110, 3435),
+                     Point(5110, 3409), Point(5116, 3392), Point(5140, 3388), Point(5166, 3387), Point(5193, 3389),
+                     Point(5215, 3388), Point(5241, 3388), Point(5265, 3386), Point(5288, 3387), Point(5313, 3388),
+                     Point(5333, 3389), Point(5336, 3378), Point(5041, 3487), Point(5045, 3464), Point(5047, 3449),
+                     Point(5033, 3421), Point(5026, 3400), Point(5021, 3380), Point(5021, 3359), Point(5010, 3341)];
+
+  WW_web_Lumbridge :=[Point(4635, 3609), Point(4642, 3593), Point(4648, 3609), Point(4662, 3607), Point(4666, 3590),
+                     Point(4667, 3576), Point(4685, 3575), Point(4699, 3575), Point(4733, 3574), Point(4750, 3574),
+                     Point(4752, 3595), Point(4752, 3610), Point(4778, 3607), Point(4753, 3620), Point(4754, 3636),
+                     Point(4736, 3638), Point(4770, 3646), Point(4787, 3656), Point(4787, 3673), Point(4782, 3703),
+                     Point(4776, 3725), Point(4768, 3750), Point(4758, 3773), Point(4748, 3791), Point(4744, 3813),
+                     Point(4742, 3831), Point(4731, 3851), Point(4720, 3865), Point(4719, 3832), Point(4688, 3832),
+                     Point(4667, 3832), Point(4641, 3834), Point(4619, 3836), Point(4593, 3837), Point(4562, 3834),
+                     Point(4537, 3834), Point(4514, 3832), Point(4495, 3831), Point(4470, 3830), Point(4442, 3833),
+                     Point(4422, 3842), Point(4400, 3853), Point(4401, 3824), Point(4401, 3801), Point(4401, 3780),
+                     Point(4399, 3753), Point(4380, 3772), Point(4377, 3745), Point(4374, 3717), Point(4371, 3689),
+                     Point(4366, 3665), Point(4365, 3636), Point(4368, 3613), Point(4372, 3591), Point(4622, 3594),
+                     Point(4619, 3573), Point(4590, 3577), Point(4559, 3579), Point(4533, 3578), Point(4506, 3577),
+                     Point(4480, 3580), Point(4455, 3580), Point(4426, 3580), Point(4402, 3579), Point(4374, 3571),
+                     Point(4344, 3573), Point(4316, 3581), Point(4289, 3592), Point(4266, 3613), Point(4265, 3641),
+                     Point(4265, 3663), Point(4266, 3688), Point(4263, 3712), Point(4266, 3736), Point(4265, 3763),
+                     Point(4250, 3776), Point(4600, 3556), Point(4601, 3529), Point(4604, 3502), Point(4624, 3478),
+                     Point(4642, 3490), Point(4670, 3489), Point(4676, 3469), Point(4659, 3466), Point(4687, 3493),
+                     Point(4690, 3471), Point(4705, 3502), Point(4720, 3514), Point(4730, 3523), Point(4744, 3538),
+                     Point(4748, 3552), Point(4705, 3453), Point(4709, 3432), Point(4678, 3447), Point(4678, 3421),
+                     Point(4677, 3395), Point(4701, 3397), Point(4724, 3403), Point(4754, 3403), Point(4787, 3401),
+                     Point(4771, 3428), Point(4773, 3448), Point(4776, 3473), Point(4782, 3494), Point(4801, 3492),
+                     Point(4823, 3487), Point(4844, 3481), Point(4774, 3547), Point(4797, 3545), Point(4820, 3545),
+                     Point(4841, 3536), Point(4871, 3538), Point(4845, 3514), Point(4830, 3458), Point(4816, 3438),
+                     Point(4813, 3407), Point(4811, 3383), Point(4837, 3383), Point(4804, 3366), Point(4785, 3347),
+                     Point(4795, 3384), Point(4768, 3327), Point(4766, 3298), Point(4765, 3267), Point(4741, 3269),
+                     Point(4672, 3376), Point(4668, 3347), Point(4644, 3335), Point(4615, 3331), Point(4602, 3309),
+                     Point(4597, 3334), Point(4570, 3318), Point(4565, 3340), Point(4552, 3313), Point(4531, 3304),
+                     Point(4530, 3280), Point(4506, 3306), Point(4481, 3301), Point(4478, 3282), Point(4475, 3262),
+                     Point(4475, 3244), Point(4466, 3302), Point(4586, 3507), Point(4555, 3518), Point(4539, 3526)];
+
+  WW_web_Draynor :=  [Point(4180, 3479), Point(4178, 3455), Point(4155, 3453), Point(4132, 3448), Point(4155, 3477),
+                     Point(4153, 3497), Point(4156, 3515), Point(4163, 3533), Point(4192, 3454), Point(4213, 3448),
+                     Point(4227, 3427), Point(4223, 3398), Point(4198, 3395), Point(4180, 3409), Point(4126, 3429),
+                     Point(4136, 3399), Point(4121, 3383), Point(4105, 3373), Point(4095, 3356), Point(4086, 3342),
+                     Point(4056, 3343), Point(4027, 3344), Point(4003, 3344), Point(3976, 3340), Point(3950, 3340),
+                     Point(3944, 3310), Point(3934, 3359), Point(3913, 3374), Point(3896, 3387), Point(3886, 3407),
+                     Point(3867, 3415), Point(3915, 3409), Point(3886, 3430), Point(3888, 3455), Point(3861, 3463),
+                     Point(3890, 3478), Point(3916, 3464), Point(3911, 3483), Point(3924, 3506), Point(3923, 3534),
+                     Point(3922, 3559), Point(3924, 3580), Point(3920, 3602), Point(3921, 3624), Point(3896, 3629),
+                     Point(3866, 3627), Point(3884, 3653), Point(3859, 3659), Point(3904, 3580), Point(3878, 3582),
+                     Point(3867, 3576), Point(3863, 3554), Point(3943, 3508), Point(3963, 3506), Point(3983, 3508),
+                     Point(4004, 3509), Point(3976, 3489), Point(3979, 3466), Point(3994, 3462), Point(4016, 3463),
+                     Point(4028, 3442), Point(4048, 3433), Point(4039, 3408), Point(4022, 3389), Point(4022, 3375),
+                     Point(4034, 3363), Point(3974, 3443), Point(3956, 3428), Point(3928, 3423), Point(3906, 3422),
+                     Point(3867, 3437), Point(3838, 3438), Point(3813, 3435), Point(3782, 3432), Point(3751, 3431),
+                     Point(3725, 3433), Point(3716, 3447), Point(3710, 3472), Point(3715, 3490), Point(3724, 3502),
+                     Point(3739, 3512), Point(3756, 3521), Point(3784, 3513), Point(3800, 3496), Point(3821, 3487),
+                     Point(3853, 3483), Point(3871, 3481)];
+
+   WW_web_Falador := [Point(3862, 3028), Point(3861, 3008), Point(3882, 3008), Point(3899, 3013), Point(3908, 3034),
+                     Point(3911, 3053), Point(3930, 3062), Point(3933, 3084), Point(3935, 3106), Point(3914, 3104),
+                     Point(3897, 3094), Point(3954, 3090), Point(3897, 2998), Point(3916, 2987), Point(3935, 2979),
+                     Point(3954, 2973), Point(3976, 2972), Point(4000, 2972), Point(4026, 2972), Point(4045, 2962),
+                     Point(4056, 2944), Point(3841, 3005), Point(3832, 3022), Point(3838, 3043), Point(3840, 3064),
+                     Point(3838, 3088), Point(3839, 3110), Point(3840, 3130), Point(3838, 3148), Point(3837, 3178),
+                     Point(3809, 3198), Point(3786, 3217), Point(3775, 3236), Point(3762, 3256), Point(3757, 3273),
+                     Point(3764, 3222), Point(3735, 3223), Point(3706, 3222), Point(3680, 3225), Point(3653, 3228),
+                     Point(3624, 3228), Point(3596, 3231), Point(3565, 3241), Point(3541, 3257), Point(3541, 3272),
+                     Point(3541, 3290), Point(3817, 2997), Point(3795, 2985), Point(3773, 2971), Point(3750, 2954),
+                     Point(3729, 2939), Point(3702, 2961), Point(3711, 2935), Point(3690, 2932), Point(3706, 2917),
+                     Point(3673, 2932), Point(3653, 2930), Point(3643, 2927), Point(3643, 2903), Point(3627, 2926),
+                     Point(3614, 2932), Point(3610, 2948), Point(3591, 2960), Point(3597, 2974), Point(3635, 2947),
+                     Point(3636, 2963), Point(3613, 2965), Point(3616, 2992), Point(3614, 3015), Point(3604, 3035),
+                     Point(3595, 3052), Point(3590, 3072), Point(3591, 3095), Point(3590, 3109), Point(3821, 3147),
+                     Point(3793, 3163), Point(3773, 3176), Point(3752, 3176), Point(3732, 3190), Point(3733, 3172),
+                     Point(3712, 3174), Point(3698, 3184), Point(3694, 3200), Point(3668, 2946), Point(3669, 2964),
+                     Point(3668, 2985), Point(3666, 3010), Point(3671, 3031), Point(3668, 3050), Point(3677, 3070),
+                     Point(3693, 3078)];
+
+   WW_web_Edgeville:=[Point(4185, 2486), Point(4185, 2470), Point(4202, 2464), Point(4223, 2458), Point(4240, 2456),
+                     Point(4183, 2458), Point(4174, 2439), Point(4163, 2427), Point(4166, 2405), Point(4164, 2385),
+                     Point(4164, 2368), Point(4191, 2438), Point(4215, 2432), Point(4224, 2416), Point(4226, 2388),
+                     Point(4226, 2368), Point(4162, 2438), Point(4143, 2434), Point(4130, 2413), Point(4162, 2491),
+                     Point(4172, 2510), Point(4185, 2520), Point(4184, 2539), Point(4189, 2567), Point(4161, 2565),
+                     Point(4158, 2542), Point(4157, 2526), Point(4198, 2514), Point(4210, 2527), Point(4208, 2548),
+                     Point(4210, 2570), Point(4204, 2589), Point(4183, 2589), Point(4164, 2589), Point(4156, 2600),
+                     Point(4159, 2628), Point(4163, 2651), Point(4170, 2674), Point(4183, 2687), Point(4204, 2702),
+                     Point(4225, 2713), Point(4242, 2718), Point(4225, 2727), Point(4218, 2751), Point(4203, 2769),
+                     Point(4175, 2768), Point(4151, 2765), Point(4153, 2780), Point(4150, 2812), Point(4149, 2750),
+                     Point(4166, 2739), Point(4172, 2711), Point(4172, 2689), Point(4151, 2504), Point(4133, 2512),
+                     Point(4130, 2532), Point(4129, 2552), Point(4127, 2570), Point(4137, 2587), Point(4140, 2608),
+                     Point(4120, 2619), Point(4106, 2632), Point(4098, 2648), Point(4091, 2673), Point(4070, 2662),
+                     Point(4053, 2648), Point(4031, 2659), Point(4026, 2682), Point(4042, 2637), Point(4019, 2628),
+                     Point(4017, 2601), Point(4018, 2575), Point(3998, 2569), Point(3979, 2563), Point(3955, 2563),
+                     Point(3939, 2572), Point(3923, 2595), Point(3903, 2607), Point(3882, 2612), Point(3873, 2618),
+                     Point(3872, 2643), Point(4015, 2549), Point(4017, 2520), Point(4017, 2497), Point(4121, 2434),
+                     Point(4101, 2421), Point(4099, 2405), Point(4088, 2383)];
+
+   WW_roads_F2P  := [Point(4687, 3579), Point(4700, 3576), Point(4726, 3576), Point(4751, 3573), Point(4754, 3545),
+                     Point(4770, 3545), Point(4797, 3545), Point(4821, 3544), Point(4835, 3542), Point(4849, 3526),
+                     Point(4851, 3502), Point(4846, 3480), Point(4837, 3462), Point(4823, 3447), Point(4809, 3424),
+                     Point(4812, 3399), Point(4808, 3374), Point(4794, 3359), Point(4777, 3346), Point(4767, 3322),
+                     Point(4765, 3292), Point(4765, 3267), Point(4766, 3236), Point(4781, 3214), Point(4799, 3193),
+                     Point(4817, 3172), Point(4836, 3154), Point(4865, 3153), Point(4881, 3137), Point(4872, 3119),
+                     Point(4839, 3111), Point(4815, 3110), Point(4788, 3105), Point(4761, 3101), Point(4741, 3102),
+                     Point(4722, 3091), Point(4716, 3071), Point(4714, 3046), Point(4704, 3024), Point(4686, 3009),
+                     Point(4677, 2984), Point(4663, 2962), Point(4655, 2937), Point(4654, 2907), Point(4653, 2878),
+                     Point(4656, 2851), Point(4653, 2822), Point(4656, 2797), Point(4656, 2773), Point(4657, 2750),
+                     Point(4657, 2739), Point(4632, 2735), Point(4680, 2733), Point(4707, 2732), Point(4733, 2730),
+                     Point(4766, 2729), Point(4791, 2734), Point(4824, 2736), Point(4865, 2736), Point(4890, 2735),
+                     Point(4917, 2734), Point(4607, 2735), Point(4579, 2727), Point(4549, 2731), Point(4511, 2732),
+                     Point(4484, 2737), Point(4465, 2756), Point(4449, 2772), Point(4428, 2782), Point(4395, 2782),
+                     Point(4369, 2781), Point(4344, 2782), Point(4322, 2795), Point(4293, 2790), Point(4277, 2772),
+                     Point(4242, 2766), Point(4214, 2766), Point(4178, 2766), Point(4158, 2772), Point(4206, 2754),
+                     Point(4186, 2745), Point(4177, 2730), Point(4171, 2707), Point(4172, 2687), Point(4172, 2664),
+                     Point(4172, 2642), Point(4164, 2622), Point(4154, 2600), Point(4138, 2585), Point(4127, 2562),
+                     Point(4129, 2533), Point(4136, 2516), Point(4158, 2499), Point(4183, 2487), Point(4138, 2774),
+                     Point(4115, 2777), Point(4089, 2780), Point(4065, 2785), Point(4040, 2798), Point(4021, 2798),
+                     Point(3998, 2797), Point(3980, 2779), Point(3961, 2755), Point(3941, 2743), Point(3912, 2747),
+                     Point(3886, 2742), Point(3862, 2730), Point(3839, 2724), Point(3808, 2721), Point(3779, 2727),
+                     Point(3761, 2744), Point(3756, 2767), Point(3731, 2780), Point(3716, 2786), Point(3693, 2796),
+                     Point(3681, 2812), Point(3672, 2831), Point(3672, 2865), Point(3670, 2885), Point(3671, 2914),
+                     Point(3670, 2931), Point(3646, 2925), Point(3619, 2925), Point(3615, 2941), Point(3595, 2953),
+                     Point(3595, 2971), Point(3693, 2934), Point(3720, 2938), Point(3748, 2951), Point(3764, 2967),
+                     Point(3784, 2977), Point(3803, 2994), Point(3832, 2999), Point(3865, 3005), Point(3860, 3028),
+                     Point(3836, 3013), Point(3835, 3035), Point(3839, 3064), Point(3837, 3087), Point(3840, 3107),
+                     Point(3838, 3124), Point(3832, 3144), Point(3836, 3177), Point(3836, 3207), Point(3831, 3231),
+                     Point(3835, 3256), Point(3835, 3278), Point(3833, 3304), Point(3840, 3334), Point(3858, 3345),
+                     Point(3886, 3344), Point(3920, 3342), Point(3946, 3344), Point(3938, 3361), Point(3918, 3375),
+                     Point(3893, 3393), Point(3885, 3418), Point(3889, 3440), Point(3889, 3468), Point(3899, 3481),
+                     Point(3917, 3486), Point(3924, 3506), Point(3970, 3345), Point(3993, 3348), Point(4019, 3345),
+                     Point(4042, 3344), Point(4063, 3341), Point(4088, 3339), Point(4109, 3331), Point(4109, 3304),
+                     Point(4133, 3293), Point(4176, 3288), Point(4191, 3273), Point(4220, 3272), Point(4247, 3270),
+                     Point(4276, 3272), Point(4294, 3255), Point(4322, 3268), Point(4354, 3269), Point(4376, 3269),
+                     Point(4406, 3274), Point(4426, 3278), Point(4445, 3293), Point(4476, 3301), Point(4509, 3305),
+                     Point(4541, 3308), Point(4561, 3317), Point(4587, 3328), Point(4619, 3334), Point(4655, 3334),
+                     Point(4673, 3352), Point(4675, 3382), Point(4678, 3411), Point(4675, 3382), Point(4677, 3436),
+                     Point(4684, 3469), Point(4701, 3488), Point(4718, 3510), Point(4730, 3526), Point(4745, 3540),
+                     Point(4305, 3240), Point(4319, 3216), Point(4334, 3197), Point(4343, 3162), Point(4350, 3136),
+                     Point(4352, 3108), Point(4351, 3080), Point(4351, 3049), Point(4357, 3019), Point(4358, 2987),
+                     Point(4357, 2962), Point(4347, 2942), Point(4329, 2930), Point(4310, 2921), Point(4293, 2911),
+                     Point(4274, 2905), Point(4255, 2888), Point(4235, 2875), Point(4227, 2855), Point(4223, 2830),
+                     Point(4221, 2809), Point(4204, 2790), Point(4205, 2773), Point(4872, 3123), Point(4894, 3120),
+                     Point(4919, 3118), Point(4940, 3122), Point(4938, 3142), Point(4931, 3164), Point(4909, 3179),
+                     Point(4908, 3206), Point(4909, 3228), Point(4913, 3252), Point(4906, 3271), Point(4909, 3292),
+                     Point(4909, 3318), Point(4910, 3338), Point(4911, 3361), Point(4913, 3388), Point(4920, 3413),
+                     Point(4925, 3451), Point(4922, 3473), Point(4922, 3497), Point(4920, 3525), Point(4919, 3550),
+                     Point(4924, 3574), Point(4934, 3590), Point(4944, 3607), Point(4945, 3623), Point(4941, 3643),
+                     Point(4938, 3667), Point(4934, 3686), Point(4936, 3712), Point(4927, 3728), Point(4919, 3753),
+                     Point(4911, 3770), Point(4893, 3775), Point(4811, 3184), Point(4796, 3200), Point(4779, 3214),
+                     Point(4766, 3231), Point(4766, 3255), Point(4770, 3281), Point(4767, 3300), Point(4772, 3325),
+                     Point(4780, 3352), Point(4791, 3371), Point(4795, 3397), Point(4776, 3403), Point(4748, 3403),
+                     Point(4718, 3402), Point(4691, 3391), Point(4669, 3376), Point(4667, 3352), Point(4661, 3339),
+                     Point(4643, 3330), Point(4618, 3336), Point(4591, 3330), Point(4570, 3324), Point(4540, 3310),
+                     Point(4518, 3301), Point(4493, 3307), Point(4477, 3298), Point(4451, 3294), Point(4434, 3279),
+                     Point(4403, 3270), Point(4373, 3270), Point(4353, 3267), Point(4330, 3264), Point(4300, 3260),
+                     Point(4266, 3271), Point(4244, 3271), Point(4227, 3274), Point(4199, 3274), Point(4167, 3290),
+                     Point(4150, 3290), Point(4120, 3301), Point(4100, 3318), Point(4092, 3336), Point(4067, 3345),
+                     Point(4042, 3343), Point(4015, 3343), Point(3988, 3350)];
+
+   WW_ep_Lumbridge := [Point(4575, 3319), Point(4572, 3468), Point(4786, 3683), Point(4875, 3539), Point(4763, 3263)];
+   WW_ep_Varrock   := [Point(4540, 2731), Point(4900, 2736), Point(4656, 2911)];
+   WW_ep_Draynor   := [Point(4232, 3357), Point(4095, 3341), Point(4228, 3497)];
+   WW_ep_Falador   := [Point(3672, 2894), Point(3837, 3150)];
+   WW_ep_Edgeville := [Point(4264, 2397), Point(4158, 2589)];
+   WW_ep_Alkharid  := [Point(4890, 3542)];
+
+end;

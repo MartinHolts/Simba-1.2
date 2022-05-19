@@ -1,0 +1,234 @@
+Const
+  AL_INCPATH = IncludePath+'AeroLib';
+
+{$DEFINE Aerolib}
+
+{$include_once core/Definitions.simba}
+{$include_once core/Constants.simba}
+
+{$include_once core/engine/Boxes.simba}
+{$include_once core/engine/TPA.simba}
+{$include_once core/engine/DTM.simba}
+{$include_once core/engine/Time.simba}
+{$include_once core/engine/Math.simba}
+{$include_once core/engine/Color.simba}
+{$include_once core/engine/SimbaEx.simba}
+
+{$include_once misc/Graphics.simba}
+
+{$IFDEF SMART}
+  {$include_once misc/connection/Smart.simba}
+{$ELSE}
+  {$include_once misc/Layer.simba}
+{$ENDIF}
+
+{$include_once core/engine/InputHandler.simba}
+{$include_once misc/Debugging.simba}
+
+{$include_once core/Timing.simba}
+{$include_once core/Text.simba}
+{$include_once core/Menu.simba}
+{$include_once core/Animation.simba}
+{$include_once core/Chat.simba}
+
+{$include_once core/interfaces/Interfaces.simba}
+{$include_once core/gametabs/Inventory.simba}
+{$include_once entities/items/Items.simba}
+{$include_once misc/Combat.simba}
+
+{$include_once entities/EntityHandler.simba}
+{$include_once entities/player/Player.simba}
+{$include_once entities/player/Login.simba}
+{$include_once entities/player/WorldHandler.simba}
+{$include_once misc/connection/Highscores.simba}
+{$include_once misc/connection/ItemInfo.simba}
+{$include_once misc/connection/Stats.simba}
+{$include_once core/interfaces/Bank.simba}
+
+{$include_once entities/object/Object.simba}
+{$include_once entities/npc/NPC.simba}
+
+{$include_once core/minimap/Minimap.simba}
+{$include_once core/Breaking.simba}
+{$include_once core/gametabs/GameTab.simba}
+{$include_once core/Antiban.simba}
+{$include_once core/gametabs/WorldSwitcher.simba}
+{$include_once core/gametabs/Prayer.simba}
+{$include_once core/gametabs/Magic.simba}
+
+{$include_once misc/randomsolvers/Master.simba}
+{$include_once misc/Reports.simba}
+
+{$IFDEF WALKER}
+  {$include_once core/minimap/Walker/Walker.simba}
+  {$IFDEF WORLDWALKER}
+    {$include_once core/minimap/Walker/WorldWalker.simba}
+  {$ENDIF}
+{$ENDIF}
+
+Const
+  AL_VERSION_MAIN = 2.1;
+  AL_VERSION_SUB  = 0;
+  AL_GITURL       = 'https://github.com/J-Flight/AeroLib';
+
+procedure AL_Update();
+const
+  GitHead    = 'https://github.com/';
+  RawGitHead = 'https://raw.githubusercontent.com/';
+  MasterHead = 'https://codeload.github.com/';
+  MasterFoot = '/zip/master';
+var
+  hFile,hZip,i,P: Integer;
+  ZipData,RepoName: String;
+Begin
+  warn('Updating AeroLib...', WT_CORE);
+  P := -1;
+  for i := 1 To Length(AL_GITURL) Do
+    if (AL_GITURL[i] = '/') Then
+      P := i + 1;
+
+  RepoName := Copy(AL_GITURL, P, Length(AL_GITURL) - P + 1);
+
+  ZipData := Copy(AL_GITURL, Length(GitHead) + 1, Length(AL_GITURL) - Length(GitHead) + 1);
+  //ZipData := PS_GetPage(MasterHead + ZipData + MasterFoot);
+  hZip := RewriteFile(IncludePath + RepoName + '.zip', False);
+  if (hZip <> -1) Then
+  begin
+    if (not WriteFileString(hZip, ZipData)) Then
+    begin
+      warn('Failed to download AeroLib from GitHub.', WT_CORE);
+      Exit;
+    end;
+
+    If (hFile <> 0) Then
+      CloseFile(hFile);
+
+    CloseFile(hZip);
+    UnzipFile(IncludePath + RepoName + '.zip', IncludePath);
+    DeleteFile(IncludePath + RepoName + '.zip');
+    RenameFile(IncludePath + 'AeroLib', IncludePath + 'AeroLib_Old');
+    RenameFile(IncludePath + RepoName + '-master', IncludePath + RepoName);
+    warn('Successfully updated AeroLib, please restart the script.', WT_CORE);
+    TerminateScript;
+  end else
+  begin
+    if (hFile <> 0) Then
+      CloseFile(hFile);
+
+    if (hZip <> 0) Then
+      CloseFile(hZip);
+
+    Exit;
+  end;
+
+  if (hFile <> 0) Then
+    CloseFile(hFile);
+end;
+
+procedure AL_CheckVersion();
+var
+  Page,vM,vS : String;
+begin
+  warn('Checking version...', WT_CORE);
+  try
+    Page := GetPage('http://pastebin.com/raw/RHP62Pi7');
+  except
+    warn('Error while checking version', WT_CORE);
+    Exit;
+  end;
+
+  vM := Between('<_MAIN>', '</_MAIN>', Page);
+  vS := Between('<_SUB>', '</_SUB>', Page);
+
+  if (vM = '') or (vS = '') then
+  begin
+    warn('Error while checking version', WT_CORE);
+    Exit;
+  end;
+
+  if ((AL_VERSION_MAIN >= strToFloat(vM)) and (AL_VERSION_SUB >= strToFloat(vS))) then
+  begin
+    warn('Currently up to date.', WT_CORE);
+    exit;
+  end;
+
+  if (AL_VERSION_MAIN < strToFloat(vM)) then
+  begin
+    warn('There'#39's a major update available for AeroLib.', WT_CORE);
+    //AL_Update();
+    exit;
+  end;
+
+  if (AL_VERSION_SUB < strToFloat(vS)) then
+    if (AL_VERSION_MAIN <= strToFloat(vM)) then
+      warn('There'#39's a minor update available for AeroLib.', WT_CORE)
+    else
+    begin
+      warn('Currently up to date.', WT_CORE);
+      exit;
+    end;
+
+  //AL_Update();
+end;
+
+{$IFDEF SMART}
+procedure restartSMART();
+begin
+  freeSMART();
+  OS_SMART.Create(765, 503, SMART_UserAgent, ['']);
+
+  if not RSReady() then
+  begin
+    warn('Failed to initiate SMART, terminating script', WT_CORE);
+    terminateScript();
+  end;
+  OS_Smart.__Graphics.Clear;
+end;
+{$ENDIF}
+
+procedure initAL();
+begin
+  AL_InitMessage(AL_VERSION_MAIN, AL_VERSION_SUB);
+  warn('Initiating AeroLib...', WT_CORE);
+  if DirectoryExists(IncludePath + 'AeroLib_Old') then
+  begin
+    warn('Removing old AeroLib files...', WT_CORE);
+    if not DeleteDirectory(IncludePath + 'AeroLib_Old', True) then
+      warn('Error deleting old AeroLib', WT_CORE)
+    else
+      warn('Old AeroLib deleted', WT_CORE);
+  end;
+  AL_CheckVersion();
+  warn('AeroLib auto-update is disabled', WT_CORE);
+  setupGauss();
+  loadObjDB();
+
+  MouseSpeed := 20;
+  ocr_LoadFont(AppPath + 'Fonts\UpChars07_s\', UpFont);
+  addOnTerminate('freeSFonts');
+
+  setLength(IgnoreWorlds, 3);
+  IgnoreWorlds := [325, 337, 365];
+  setupInterfaces();
+  setupRandoms();
+
+  {$IFDEF SMART}
+    OS_SMART.Create(765, 503, SMART_UserAgent, ['']);
+
+    if not RSReady() then
+    begin
+      warn('Failed to initiate SMART, terminating script', WT_CORE);
+      terminateScript();
+    end;
+    OS_Smart.__Graphics.Clear;
+    AL_Procs[al_OnRSUpdate] := @restartSMART;
+  {$ELSE}
+    setupLayer();
+    Layer.PaintInterval(70);
+    if not isTargetValid() then
+      activateClient();
+  {$ENDIF}
+
+  Me.ModelSet := False;
+  warn('Startup complete!', WT_CORE);
+end;

@@ -1,0 +1,5 @@
+docgen/build/
+docgen/source/
+backup
+lib
+*.lps

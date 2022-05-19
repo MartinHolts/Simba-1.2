@@ -1,0 +1,203 @@
+{
+===
+TPA
+===
+}
+
+function TPointArray.midPnt(): TPoint;
+var
+  mPnt: TPoint;
+begin
+  if Length(Self) < 1 then
+    Exit;
+
+  mPnt := middleTPA(Self);
+  sortTPAFrom(Self, mPnt);
+
+  Result:= Self[0];
+end;
+
+function TPointArray.getBounds(): TBox;
+begin
+  if Length(Self) < 1 then
+    Exit;
+  Result:= getTPABounds(Self);
+end;
+
+function pointsMatch(Pnt1, Pnt2: TPoint): Boolean;
+begin
+  result := ((Pnt1.X = Pnt2.X) and (Pnt1.Y = Pnt2.Y));
+end;
+
+function TPADelete(var TPA: TPointArray; x: Integer): Boolean;
+var
+  i, h: Integer;
+begin
+  h := High(TPA);
+  Result := ((x <= h) and (x > -1));
+  if not Result then
+    Exit;
+  for i := x to (h - 1) do
+    TPA[i] := TPA[(i + 1)];
+  SetLength(TPA, h);
+end;
+
+procedure TPointArray.filterByBounds(Area: TBox);
+var
+  i : integer;
+begin
+  if length(Self) < 1 then exit;
+
+  for i:=0 to high(Self) do
+    if not pointInBox(Self[i], Area) then
+      TPADelete(Self, i);
+end;
+
+function TPointArray.foundInBox(Box: TBox): Boolean;
+var
+  i : Integer;
+begin
+  if length(self) < 1 then
+    exit(false);
+
+  for i:=0 to high(self) do
+    if pointInBox(self[i], Box) then
+      exit(true);
+end;
+
+function TPointArray.getShortestPath(StartPos, Dest: TPoint; Dist:Integer=15): TPointArray;
+var
+  sP,P1,P2,P3 : TPoint;
+  D1,D2,D3,h : Integer;
+  tmpTPA  : TPointArray;
+begin
+  tmpTPA := copyTPA(Self);
+  h := 0;
+  sP := StartPos;
+  Repeat
+    sortTPAFrom(tmpTPA, sP);
+    if length(tmpTPA) < 3 then
+      break;
+    P1 := tmpTPA[0];
+    P2 := tmpTPA[1];
+    P3 := tmpTPA[2];
+
+    if not pointInTPA(P1, tmpTPA) then
+      continue;
+    if not pointInTPA(P2, tmpTPA) then
+      continue;
+    if not pointInTPA(P3, tmpTPA) then
+      continue;
+    setLength(result, Length(result)+1);
+
+    D1 := distance(P1.X,P1.Y,Dest.X,Dest.Y);
+    D2 := distance(P2.X,P2.Y,Dest.X,Dest.Y);
+    D3 := distance(P3.X,P3.Y,Dest.X,Dest.Y);
+
+    if (D1 > D2) then
+    begin
+      if (D3 > D2) then
+      begin
+        result[high(result)] := P2;
+        sP := P2;
+      end else
+      begin
+        result[high(result)] := P3;
+        sP := P3;
+      end;
+    end else
+    begin
+      result[high(result)] := P1;
+      sP := P1;
+    end;
+
+    tmpTPA[0] := tmpTPA[1];
+    clearDoubleTPA(tmpTPA);
+
+    inc(h);
+  Until(distance(sP.X, sP.Y, Dest.X, Dest.Y) <= Dist);
+  clearDoubleTPA(result);
+end;
+
+function TPointArray.forceSplitToSize(Width, Height, Tolerance: Integer; MinCount: Integer=100): T2DPointArray;
+var
+  i,w,h: Integer;
+  aBox: TBox;
+  fPnts,
+  tmpTPA,
+  sTPA: TPointArray;
+  t2DArr: T2DPointArray;
+begin
+  tmpTPA := copyTPA(Self);
+
+  while length(tmpTPA)>0 do
+  begin
+    fPnts  := [];
+    t2DArr := [];
+    aBox   := toBox(0,0,0,0);
+    TPAtoATPAExWrap(tmpTPA, Width, Height, t2DArr);
+
+    if (Length(t2DArr) < 1) then
+      Exit;
+
+    sTPA := t2DArr[0];
+    aBox := getTPABounds(sTPA);
+
+    with aBox do
+    begin
+      w := (aBox.X2-aBox.X1);
+      h := (aBox.Y2-aBox.Y1);
+
+      if (w > (Width+Tolerance)) then
+        aBox.X2 := aBox.X1+Width;
+      if (h > (Height+Tolerance)) then
+        aBox.Y2 := aBox.Y1+Height;
+
+      if (w < (Width-Tolerance)) then
+        aBox.X2 := aBox.X1+Width;
+      if (h < (Height-Tolerance)) then
+        aBox.Y2 := aBox.Y1+Height;
+    end;
+
+    for i:=0 to high(sTPA) do
+    begin
+      if PointInBox(sTPA[i], aBox) then
+      begin
+        setArrayLength(fPnts, Length(fPnts)+1);
+        fPnts[High(fPnts)] := sTPA[i];
+      end;
+    end;
+
+    if (length(fPnts) >= MinCount) then
+    begin
+      setArrayLength(Result, Length(Result)+1);
+      Result[High(Result)] := fPnts;
+    end;
+
+    clearTPAFromTPAWrap(tmpTPA, fPnts, tmpTPA);
+  end;
+end;
+
+function TPointArray.getRandomPoint(): TPoint;
+begin
+  result := self[randomRange(0,length(self))];
+end;
+
+function pointsInDist(Pt1, Pt2: TPoint; Dist: Integer): Boolean;
+begin
+  result := (distance(Pt1.X, Pt1.Y, Pt2.X, Pt2.Y) <= Dist);
+end;
+
+function T2DPointArray.toBoxArray(): TBoxArray;
+var
+  i : Integer;
+begin
+  setArrayLength(result, length(self));
+  for i:=0 to high(self) do
+    result[high(result)] := self[i].getBounds();
+end;
+
+function T2DPointArray.getRandomTPA(): TPointArray;
+begin
+  result := self[randomRange(0,length(self))];
+end;

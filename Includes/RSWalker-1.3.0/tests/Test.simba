@@ -1,0 +1,13 @@
+program new;
+{$I SRL/OSR.simba}
+{$I RSWalker/Walker.simba}
+
+var
+  RSW:TRSWalker;
+begin
+  RSW.Init('world.png');
+
+  AddOnTerminate(@RSW.Free);
+
+  while True do RSW.DebugPos();
+end.

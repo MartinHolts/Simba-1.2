@@ -1,0 +1,111 @@
+{
+===========
+Definitions
+===========
+}
+
+type
+  TPointerSet = record
+  isProc : Boolean;
+  proc   : procedure;
+  func   : function: Boolean;
+  name   : String;
+end;
+
+type TColEx = record
+  Col  : Integer;
+  Tol  : Integer;
+  hMod : Extended;
+  sMod : Extended;
+end;
+
+type TGraphics = record
+  Bmp    : TMufasaBitmap;
+  Init   : Boolean;
+  Width  : Integer;
+  Height : Integer;
+end;
+
+type TChatOption = record
+  Str    : String;
+  Bounds : TBox;
+end;
+
+type TOptions = record
+  Str    : String;
+  Bounds,
+  BigBox : TBox;
+end;
+
+type TInterface = record
+  Text       : String;
+  TxtBounds  : TBox;
+  FontType   : String;
+  FontColor,
+  ColorTol   : Integer;
+end;
+
+type TEntity = record
+  Bounds      : TBox;
+  BasePnt     : TPoint;
+  TopCol      : TColEx;
+  BottomCol   : TColEx;
+  FullTPA     : TPointArray;
+end;
+
+type TPlayer = record
+  Name      : string;
+  Pass      : string;
+  Nick      : string;
+  Pin       : string;
+  Member    : boolean;
+  WorldList : TIntegerArray;
+  Level     : array[0..24] of Integer;
+  Active    : boolean;
+  Model     : TEntity;
+  ModelSet  : boolean;
+  Status    : string;
+  Random    : string;
+  Worked    : Integer;
+  Booleans  : array of Boolean;
+  Integers  : TIntegerArray;
+  Strings   : array of string;
+  Extendeds : array of Extended;
+  Arrays    : array of TVariantArray;
+end;
+
+type TMSObject = record
+  Name      : String;
+  UpText    : TStringArray;
+  InnerCols : Array of TColEx;
+  OuterCols : Array of TColEx;
+  MinCount  : Integer;
+  Height    : Integer;
+  Width     : Integer;
+  SizeTol   : Integer;
+end;
+
+type TNPC = record
+  Name  : TStringArray;
+  Level : Integer;
+  MSObj : TMSObject;
+//Model : TEntity;
+  Busy  : Boolean;
+end;
+
+type TItem = record
+  Name      : string;
+  DTM       : integer;
+  BMP       : integer;
+  BMP_TOL   : integer;
+  Wieldable : boolean;
+end;
+
+type
+  TItemArray = Array of TItem;
+
+type TWW_Bank = record
+  Name      : string;
+  Location  : tpoint;
+  BankType  : string;
+end;

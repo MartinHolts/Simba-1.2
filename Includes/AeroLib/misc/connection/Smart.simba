@@ -1,0 +1,316 @@
+{$DEFINE SMART}
+{$loadlib libsmartremote}
+
+type TSmart = record
+  __Target, __PID: Integer;
+  __Width, __Height: Integer;
+  __ForceNew: Boolean;
+  __ShowConsole: Boolean;
+  __Graphics: TGraphics;
+  __UserAgent: String;
+end;
+
+var
+  SMART_UserAgent : String = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0';
+  SMART_World : Integer;
+  SMART_ShowConsole : Boolean = False;
+  OS_SMART : TSmart;
+
+
+Procedure freeSMART();
+begin
+  OS_SMART.Free;
+end;
+
+Procedure TSmart.Create(Width, Height: Integer; UserAgent: String; Plugins: TStringArray = []); overload;
+var
+  World,path,C: String;
+Begin
+  Self.__Width := Width;
+  Self.__Height := Height;
+  AddOnTerminate('freeSMART');
+
+  if (Not Self.__ForceNew And Self.Pair()) then
+    Exit;
+
+  World := self.GetWorld();
+  if (World = '') then
+  begin
+    writeln('Failed to grab world; please check your internet connection/firewall');
+    TerminateScript;
+    Exit;
+  end;
+
+  if SMART_ShowConsole then
+    Self.__Target := SmartSpawnClient('java.exe', replaceWrap(PluginPath, '\', '/', [rfReplaceAll]), 'http://oldschool' + World + '.runescape.com/', 'j1', Width, Height, '', UserAgent, '', '')
+  else
+    Self.__Target := SmartSpawnClient('javaw.exe', replaceWrap(PluginPath, '\', '/', [rfReplaceAll]), 'http://oldschool' + World + '.runescape.com/', 'j1', Width, Height, '', UserAgent, '', '');
+
+  if (Self.__Target = 0) then
+  begin
+    writeln('Error while finding default Java, searching for Java...');
+    path := getJavaPath(SMART_ShowConsole);
+    Self.__Target := SmartSpawnClient(path, replaceWrap(PluginPath, '\', '/', [rfReplaceAll]), 'http://oldschool' + World + '.runescape.com/', 'j1', Width, Height, '', UserAgent, '', '');
+  end;
+
+  if (Self.__Target <> 0) then
+  begin
+    try
+      Self.__PID := SmartGetClientPID(Self.__Target);
+      SetEIOSTarget('libsmartremote', ToStr(Self.__PID));
+      writeln('Loading SMART: World ' + World);
+      Self.__Graphics.Create(Width, Height, SmartDebugArray(Self.__Target));
+      SmartSetDebug(Self.__Target, True);
+    except
+      writeln('Fatal error pairing clients; terminating script');
+      SmartFreeClient(Self.__Target);
+      TerminateScript;
+    end;
+  end else
+  begin
+    writeln('SMART cannot spawn client');
+    TerminateScript;
+  end;
+end;
+
+Procedure TSmart.Create(Width, Height: Integer; Plugins: TStringArray = []); overload;
+Begin
+  Self.Create(Width, Height, '', Plugins);
+End;
+
+Function TSmart.Pair: Boolean;
+var
+  I, Count: Integer;
+  Indices: TIntegerArray;
+Begin
+  If ((Self.__Target <> 0) or (Self.__PID <> 0)) Then
+    Self.Free;
+
+  Indices := Self.GetPIDs(True);
+  Count   := Length(Indices);
+  If (Count > 0) Then
+  begin
+    For I:=0 To Count - 1 Do
+    Begin
+      Self.__Target := SmartPairClient(Indices[I]);
+      If Self.__Target <> 0 then
+      begin
+        Self.__PID := Indices[I];
+        SetEIOSTarget('libsmartremote', ToStr(Self.__PID));
+        writeln('Paired with SMART[' + ToStr(Self.__PID) + ']');
+        try
+          Self.__Graphics.Create(Self.__Width, Self.__Height, SmartDebugArray(Self.__Target));
+        except
+        end;
+        Result := True;
+        Exit;
+      end;
+    End;
+  end;
+End;
+
+Procedure TSmart.Free;
+Begin
+  SmartFreeClient(Self.__Target);
+  SmartKillClient(Self.__PID);
+  Self.__Target := 0;
+  Self.__Graphics.Free;
+  Self.__Height := 0;
+  Self.__Width := 0;
+  Self.__PID := 0;
+End;
+
+Function TSmart.GetWorld: String;
+var
+  worlds : TIntegerArray;
+Begin
+  if SMART_World > 0 then
+    exit(toStr(SMART_World));
+  Result := Between('a href="http://oldschool', '.runescape.com/j1', GetPage('http://oldschool.runescape.com/slu'));
+  //check if the result is a vaild world
+  if (length(result) > 0) then
+    if (inRange(strToIntDef(extractFromStr(result, numbers), -1), 1, 78)) then
+    begin
+      writeln('Found best world "' + result + '"');
+      exit;
+    end;
+  // else something failed, let's pick a random world
+  worlds := [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 25, 26,
+             27, 28, 29, 30, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52,
+             53, 54, 57, 58, 59, 60, 61, 62, 65, 66, 67, 68, 69, 70, 73, 74, 75, 76, 77, 78,
+             81, 82, 83, 84, 93, 94];
+  result := intToStr(worlds[random(length(worlds))]);
+End;
+
+Function TSmart.GetPIDs(Paired: Boolean): TIntegerArray;
+var
+  I, Count: Integer;
+Begin
+  Count := SmartGetClients(Paired);
+  SetLength(Result, Count);
+  If (Count > 0) Then
+    For I:= 0 to Count - 1 do
+      Result[I] := SmartGetAvailablePID(I);
+End;
+
+Function TSmart.Width: Integer;
+Begin
+  Result := Self.__Width;
+End;
+
+Function TSmart.Height: Integer;
+Begin
+  Result := Self.__Height;
+End;
+
+Function TSmart.ID: Integer;
+Begin
+  Result := Self.__PID;
+End;
+
+Function TSmart.Target: Integer;
+Begin
+  Result := Self.__Target;
+End;
+
+Function TSmart.UserAgent: String;
+Begin
+  Result := Self.__UserAgent;
+End;
+
+Function TSmart.ShowConsole: Boolean;
+Begin
+  Result := Self.__ShowConsole;
+End;
+
+Function TSmart.ImageArray: Integer;
+Begin
+  Result := SmartImageArray(Self.Target);
+End;
+
+Function TSmart.DebugArray: Integer;
+Begin
+  Result := SmartDebugArray(Self.Target);
+End;
+
+{$IFDEF SmartWrappers}
+Procedure TSmart.SetRefresh(Value: Integer);
+Begin
+  SmartSetRefresh(Self.Target, Value);
+End;
+
+Function TSmart.GetRefresh: Integer;
+Begin
+  Result := SmartGetRefresh(Self.Target);
+End;
+
+Procedure TSmart.SetTransparentColor(Colour: Integer);
+Begin
+  SmartSetTransparentColor(Self.Target, Colour);
+End;
+
+Procedure TSmart.SetDebug(Enabled: Boolean);
+Begin
+  SmartSetDebug(Self.Target, Enabled);
+End;
+
+Procedure TSmart.SetEnabled(Enabled: Boolean);
+Begin
+  SmartSetEnabled(Self.Target, Enabled);
+End;
+
+Function TSmart.Active: Boolean;
+Begin
+  Result := SmartActive(Self.Target);
+End;
+
+Function TSmart.Enabled: Boolean;
+Begin
+  Result := SmartEnabled(Self.Target);
+End;
+
+Procedure TSmart.GetMousePos(var X, Y: Integer);
+Begin
+  SmartGetMousePos(Self.Target, X, Y);
+End;
+
+Procedure TSmart.HoldMouse(X, Y: Integer; Left: Boolean);
+Begin
+  SmartHoldMouse(Self.Target, X, Y, Left);
+End;
+
+Procedure TSmart.ReleaseMouse(X, Y: Integer; Left: Boolean);
+Begin
+  SmartReleaseMouse(Self.Target, X, Y, Left);
+End;
+
+Procedure TSmart.HoldMousePlus(X, Y, Button: Integer);
+Begin
+  SmartHoldMouse(Self.Target, X, Y, Button);
+End;
+
+Procedure TSmart.ReleaseMousePlus(X, Y, Button: Integer);
+Begin
+  SmartReleaseMousePlus(Self.Target, X, Y, Button);
+End;
+
+Procedure TSmart.MoveMouse(X, Y: Integer);
+Begin
+  SmartMoveMouse(Self.Target, X, Y);
+End;
+
+Procedure TSmart.WindMouse(X, Y);
+Begin
+  SmartWindMouse(Self.Target, X, Y);
+End;
+
+Procedure TSmart.ClickMouse(X, Y: Integer; Left: Boolean);
+Begin
+  SmartClickMouse(Self.Target, X, Y, Left);
+End;
+
+Procedure TSmart.ClickMousePlus(Self.Target, X, Y, Button: Integer);
+Begin
+  SmartClickMousePlus(Self.Target, X, Y, Button);
+End;
+
+Procedure TSmart.IsMouseButtonHeld(Button: Integer);
+Begin
+  SmartIsMouseButtonHeld(Self.Target, Button);
+End;
+
+Procedure TSmart.ScrollMouse(X, Y);
+Begin
+  SmartScrollMouse(Self.Target, X, Y, 3);
+End;
+
+Procedure TSmart.SendKeys(Text: String; KeyWait, KeyMod: Integer);
+Begin
+  SmartSendKeys(Self.Target, Text, KeyWait, KeyMod);
+End;
+
+Procedure TSmart.HoldKey(Code: Integer);
+Begin
+  SmartHoldKey(Self.Target, Code);
+End;
+
+Procedure TSmart.ReleaseKey(Code: Integer);
+Begin
+  SmartReleaseKey(Self.Target, Code);
+End;
+
+Function TSmart.IsKeyDown(Code: Integer): Boolean;
+Begin
+  Result := SmartIsKeyDown(Self.Target, Code);
+End;
+
+Procedure TSmart.SetCapture(Enabled; Boolean);
+Begin
+  SmartSetCapture(Self.Target, Enabled);
+End;
+
+Procedure TSmart.SetNativeButton(PluginID, ButtonID: Integer; State: Boolean);
+Begin
+  SmartSetNativeButton(Self.Target, PluginID, ButtonID, State);
+End;
+{$ENDIF}

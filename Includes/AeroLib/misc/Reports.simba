@@ -1,0 +1,232 @@
+{
+=======
+Reports
+=======
+}
+
+
+const
+  RESULT_DEBUGBOX  = 0;
+  RESULT_REPORTBOX = 1;
+  RESULT_STRING    = 2;
+
+{ ProgressReport example
+[================================]
+[ RM Proggie 1.00                ]
+[       by Rasta Magician        ]
+[================================]
+[ TimeRunning    : 67h, 58m, 34s ]
+[ Total Fish     : 56788         ]
+[ Active Players : 7             ]
+[================================]
+[         RM Proggie 1.00        ]
+[================================]
+}
+
+{ PlayerReport - short example
+[=======================================================================================]
+[ Nick           | Active | Worked   | Banked | Loc     | fishes | Responses | FishType ]
+[=======================================================================================]
+[ Rasta Magician | True   | 20:10:56 | 43     | lumby   | 26     | 162       | trout    ]
+[ Wizzup?        | False  | 25:25:53 | 83     | draynor | 99     | 190       | shrimps  ]
+[ WT-Fakawi      | True   | 11:37:37 | 55     | draynor | 68     | 122       | shrimps  ]
+[ Hobbit         | False  | 24:17:35 | 31     | lumby   | 14     | 198       | trout    ]
+[ Nielsie95      | True   | 21:04:37 | 24     | draynor | 2      | 192       | shrimps  ]
+[ ------------------------------------------------------------------------------------- ]
+[ ZephyrsFury    | False  | 06:12:55 | 0      | draynor | 48     | 168       | shrimps  ]
+[ Boreas         | True   | 18:52:54 | 77     | lumby   | 94     | 144       | trout    ]
+[ Sumilion       | False  | 15:39:55 | 70     | draynor | 82     | 137       | shrimps  ]
+[ The Claw       | False  | 17:44:36 | 24     | lumby   | 9      | 153       | trout    ]
+[ Tarajunky      | False  | 14:31:38 | 18     | draynor | 97     | 146       | shrimps  ]
+[ ------------------------------------------------------------------------------------- ]
+[ Ray            | False  | 27:11:36 | 94     | lumby   | 43     | 122       | trout    ]
+[ Nava2          | False  | 99:59:59 | 86145  | guild   | 167854 | 9999785   | SHARK    ]
+[=======================================================================================]
+}
+
+{ PlayerReport - long example
+[=========================]
+[     Rasta Magician      ]
+[ Active    : True        ]
+[ Worked    : 20h 10m 56s ]
+[ Banked    : 43          ]
+[ Location  : lumby       ]
+[ fishes    : 26          ]
+[ Responses : 162         ]
+[ FishType  : trout       ]
+[=========================]
+[         Wizzup?         ]
+[ Active    : False       ]
+[ Worked    : 25h 25m 53s ]
+[ Banked    : 83          ]
+[ Location  : draynor     ]
+[ fishes    : 99          ]
+[ Responses : 190         ]
+[ FishType  : shrimps     ]
+[=========================]
+}
+
+{*******************************************************************************
+function progressReport(
+                           ResultType:integer; ScriptName, ScriptAuthor, ScriptVersion: String;
+                           VarNames: TStringArray;
+                           VarValues: TVariantArray
+                          ): Variant;
+By: Rasta Magician
+Description: Prints a Standardized Progress Report, with the variables of your choice
+
+Instructions:
+  ResultType => ResultDebugBox, ResultReportBox, ResultString
+  VarNames is a TStringArray, and the order has to be the one you'll use in the VarValues Array
+    e.g.  ['bool1', 'bool2', 'int1', 'string1', 'string2', 'extended1']
+  VarValues the variable with the values corresponding to VarNames
+    e.g.  [bool1, bool2, int1, string1, string2, extended1]
+
+  progressReport(ResultDebugBox, 'ScriptName', 'ScriptAuthor', '1.00',
+                    ['TimeRunning', 'Total Fish', 'Active Players'],
+                    [GetTimeRunning, TotalFish, PlayersActive ]);
+*******************************************************************************}
+function progressReport(
+                           ResultType:integer; ScriptName, ScriptAuthor, ScriptVersion: String;
+                           VarNames: TStringArray;
+                           VarValues: TVariantArray
+                          ): Variant;
+var
+  TSA        : TStringArray;
+  s          : string;
+  i, i2, L   : integer;
+begin
+  if (ResultType = RESULT_STRING) then
+    Result := '';
+
+  if length(VarNames) <> Length(VarValues) then
+  begin
+    Writeln('VarNames and VarValues must be the same length');
+    exit;
+  end;
+  SetLength(TSA, 3 + Length(VarNames) + 4);
+
+  TSA[0] := '=';
+  TSA[1] := Capitalize(ScriptName)+' '+ScriptVersion;
+  TSA[2] := 'by '+ScriptAuthor;
+  TSA[3] := '=';
+
+  i2 := 3 + Length(VarNames);
+
+  for i:= 4 to i2 do
+    L := Max(L, Length(VarNames[i-4]));
+
+  for i:= 4 to i2 do
+  begin
+    s := VarValues[i-4];
+    TSA[i] := Padr(Capitalize(VarNames[i-4]), L)+' : '+ Capitalize(s);
+  end;
+
+  TSA[i2+1]   := '=';
+  TSA[i2+2] := Capitalize(ScriptName)+' '+ScriptVersion;
+  TSA[i2+3] := '=';
+
+  i2 := 0;
+  for i:= 0 to High(TSA) do
+    i2 := Max(i2, Length(TSA[i]));
+
+  TSA[0] := Replicate('=', i2);
+  TSA[3] := Replicate('=', i2);
+  TSA[High(TSA)-2] := Replicate('=', i2);
+  TSA[High(TSA)]   := Replicate('=', i2);
+
+  TSA[1] := Replicate(' ', round((i2 - Length(TSA[1]))/2) ) + TSA[1]; //centering
+  TSA[2] := Replicate(' ', round((i2 - Length(TSA[2]))/2) ) + TSA[2]; //centering
+  TSA[High(TSA)-1] := Replicate(' ', round((i2 - Length(TSA[High(TSA)-1]))/2) ) + TSA[High(TSA)-1];
+
+  for i:= 0 to High(TSA) do
+    if (TSA[i][1] = '=') then
+      case ResultType of
+        RESULT_DEBUGBOX  : writeln     ('[='+Padr(TSA[i], i2)+'=]');
+        RESULT_REPORTBOX : AddToReport ('[='+Padr(TSA[i], i2)+'=]');
+        RESULT_STRING    : Result := Result + '[='+Padr(TSA[i], i2)+'=]' + chr(13);
+        else begin Writeln('Invalid Result Type'); exit; end;
+      end
+    else
+      case ResultType of
+        RESULT_DEBUGBOX  : writeln     ('[ '+Padr(TSA[i], i2)+' ]');
+        RESULT_REPORTBOX : AddToReport ('[ '+Padr(TSA[i], i2)+' ]');
+        RESULT_STRING    : Result := Result + '[ '+Padr(TSA[i], i2)+' ]' + chr(13);
+        else begin Writeln('Invalid Result Type'); exit; end;
+      end;
+
+  if not ResultType = RESULT_STRING then Result := true;
+end;
+
+procedure randomsReport();
+begin
+  writeln('[====================================]');
+  writeln('[           Randoms Report           ]');
+  writeln('[____________________________________]');
+  WriteLn('[' + centerStringEx('Dismissed '+toStr(dismissedRandoms)+' random events', 36, ' ') + ']');
+  writeln('[====================================]');
+  Exit;
+end;
+
+function getPerHour(Variable: Integer; IncludeBreakTime: Boolean=True): Integer;
+begin
+  case IncludeBreakTime of
+    True : result := Round((Variable*60) / maxE(1, (getTimeRunning()/60000)));
+    False: result := Round((Variable*60) / maxE(1, ((getTimeRunning()-break_TotalTime)/60000)));
+  end;
+end;
+
+procedure onScreenReport(const Location:TPoint; Font: String; Color: Integer;
+                         ScriptName: String; VarNames, VarValues: TStringArray);
+var
+  bigBox  : TBox;
+  i,w,h,j,
+  k,l     : Integer;
+  txtTPA  : T2DPointArray;
+  txtArr  : TStringArray;
+begin
+    if length(VarNames) <> Length(VarValues) then
+    begin
+      warn('VarNames and VarValues must be the same length', WT_CORE);
+      exit;
+    end;
+
+    setArrayLength(txtTPA, Length(VarNames)+1);
+    setArrayLength(txtArr, Length(VarNames)+1);
+    txtTPA[0] := TPAFromText(ScriptName, Font, w, h);
+    txtArr[0] := ScriptName;
+    for i:=0 to high(VarNames) do
+    begin
+      txtTPA[i+1] := TPAFromText(VarNames[i]+': '+VarValues[i], Font, w, h);
+      txtArr[i+1] := VarNames[i]+': '+VarValues[i];
+      if w>l then
+        l:=w;
+    end;
+
+    k := ((length(VarNames)+1)*14); //*10
+    bigBox := toBox(Location.X, Location.Y, (Location.X+l)+10, (Location.Y+k)+14);
+
+    {$IFDEF SMART}
+      OS_SMART.__Graphics.ClearArea(bigBox);
+
+      j := Location.Y+3;
+
+      for i:=0 to high(txtTPA) do
+      begin
+        OS_SMART.__Graphics.DrawClippedText(txtArr[i], Font, point(Location.X+3,j), Color);
+        incEx(j, 15);
+      end;
+      OS_SMART.__Graphics.DrawBox(bigBox, False, Color);
+    {$ELSE}
+      LayerBMP.clearArea(bigBox);
+
+      j := Location.Y+3;
+
+      for i:=0 to high(txtTPA) do
+      begin
+        LayerBMP.DrawText(txtArr[i], Font, point(Location.X+3,j), false, Color);
+        incEx(j, 15);
+      end;
+      LayerBMP.drawBox(bigBox, Color);
+    {$ENDIF}
+end;

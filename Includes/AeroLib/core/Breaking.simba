@@ -1,0 +1,75 @@
+{
+========
+Breaking
+========
+}
+
+Var
+  timer_Break : Timer;
+  break_In,break_For,break_In_Ran,
+  break_For_Ran,break_RealTime,
+  break_Count,break_TotalTime : Integer;
+  tmp_BI,tmp_BF,tmp_rBI,tmp_rBF : Integer;
+
+procedure setupBreak(BreakIn, BreakFor, RanBreakIn, RanBreakFor: Integer);
+begin
+  tmp_BI        := BreakIn;
+  tmp_BF        := BreakFor;
+  tmp_rBI       := RanBreakIn;
+  tmp_rBF       := RanBreakFor;
+  break_In      := (BreakIn * 60000);
+  break_For     := (BreakFor * 60000);
+  break_In_Ran  := RandomRange(-RanBreakIn * 60000, RanBreakIn * 60000);
+  break_For_Ran := RandomRange(-RanBreakFor * 60000, RanBreakFor * 60000);
+  timer_Break.Start();
+end;
+
+Function breakHandler(DoSwitch: Boolean = False): Boolean;
+Var
+  T      : Timer;
+  h,m,s  : integer;
+  tmpAng : Extended;
+begin
+  if not isLoggedIn() then Exit;
+  if (timer_Break.timeElapsed() < (break_In + break_In_Ran)) then Exit;
+
+  Result         := true;
+  break_RealTime := Round((break_For+break_For_Ran)/60000);
+  tmpAng         := getCompassAngle();
+  warn('Taking a break for about ' + intToStr(break_RealTime) + ' minutes.', WT_CORE);
+  logoutPlayer();
+
+  T.Start();
+  repeat
+    Wait(21000);
+    convertTime((break_For+break_For_Ran)-T.timeElapsed, h, m, s);
+    clearDebug();
+    warn('Breaktime left: '+IntToStr(h)+':'+IntToStr(m)+':'+IntToStr(s), WT_CORE);
+  until(T.timeElapsed > (break_For+break_For_Ran));
+
+  warn('Logging in...', WT_CORE);
+  if DoSwitch then
+    switchRandomWorld()
+  else
+    loginPlayer(false);
+
+  setAngle(ANGLE_HIGH);
+  wait(randomRange(1500,3000));
+  Result := isLoggedIn();
+  setCompass(tmpAng);
+
+  timer_Break.Start();
+  inc(break_Count);
+  incEx(break_TotalTime, break_For+break_For_Ran);
+
+  break_In     := (tmp_BI * 60000);
+  break_For    := (tmp_BF * 60000);
+  break_In_Ran := RandomRange(-tmp_rBI * 60000, tmp_rBI * 60000);
+  break_For_Ran := RandomRange(-tmp_rBF * 60000, tmp_rBF * 60000);
+  warn('The next break will occur in '+msToTime((break_In+break_In_Ran),Time_Short), WT_CORE);
+end;
+
+function getTimeUntilBreak(): Integer;
+begin
+  result := ((break_In + break_In_Ran)-timer_Break.timeElapsed());
+end;

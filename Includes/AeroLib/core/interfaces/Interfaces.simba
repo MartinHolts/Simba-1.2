@@ -1,0 +1,260 @@
+{
+==========
+Interfaces
+==========
+}
+
+var
+  Interfaces: Array [0..17] of TInterface;
+
+{
+~To-add~
+  -Smithing screen
+}
+
+const
+  BANKSCREEN      = 0;
+  PINSCREEN       = 1;
+  PINPENDING      = 2;
+  DEPOSITSCREEN   = 3;
+  SHOPSCREEN      = 4;
+  TRADESCREEN     = 5;
+  TRADECSCREEN    = 6;
+  DUELSCREEN      = 7;
+  DUELCSCREEN     = 8;
+  TELEOTHERSCREEN = 9;
+  GEMAINSCREEN    = 10;
+  GEOFFERSCREEN   = 11;
+  GECOLLECTSCREEN = 12;
+  JEWELLERYSCREEN = 13;
+  TARGETSCREEN    = 14;
+  TANNINGSCREEN   = 15;
+  SMITHINGSCREEN  = 16;
+  MAKESCREEN      = 17;
+
+procedure setupInterfaces();
+begin
+  with Interfaces[BANKSCREEN] do
+  begin
+    FontType  := 'SmallChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'mode';
+    TxtBounds := toBox(85, 280, 200, 335);
+  end;
+  with Interfaces[SMITHINGSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'make';
+    TxtBounds := toBox(313, 18, 360, 36);
+  end;
+  with Interfaces[PINSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'Please';
+    TxtBounds := toBox(105, 62, 150, 75);
+  end;
+  with Interfaces[PINPENDING] do
+  begin
+    FontType  := 'CharsNPC07';
+    FontColor := 65535;
+    ColorTol  := 10;
+    Text      := 'asked';
+    TxtBounds := toBox(114, 135, 204, 158);
+  end;
+  with Interfaces[DEPOSITSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'Box';
+    TxtBounds := toBox(356, 47, 383, 60);
+  end;
+  with Interfaces[SHOPSCREEN] do
+  begin
+    FontType  := 'SmallChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'shop';
+    TxtBounds := toBox(145, 295, 175, 314);
+  end;
+  with Interfaces[GEMAINSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'Grand';
+    TxtBounds := toBox(205, 28, 247, 45);
+  end;
+  with Interfaces[GEOFFERSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'offer';
+    TxtBounds := toBox(319, 30, 358, 46);
+  end;
+  with Interfaces[GECOLLECTSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'Collection';
+    TxtBounds := toBox(210, 73, 278, 89);
+  end;
+  with Interfaces[JEWELLERYSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 39423;
+    ColorTol  := 5;
+    Text      := 'Rings';
+    TxtBounds := toBox(40, 28, 150, 110);
+  end;
+  with Interfaces[TARGETSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 4500223;
+    ColorTol  := 5;
+    Text      := 'arget';
+    TxtBounds := toBox(225, 30, 310, 50);
+  end;
+  with Interfaces[TANNINGSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'hides';
+    TxtBounds := toBox(140, 30, 375, 50);
+  end;
+  with Interfaces[TRADESCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 2070783;
+    ColorTol  := 5;
+    Text      := 'Trading';
+    TxtBounds := toBox(177, 28, 233, 45);
+  end;
+  with Interfaces[TRADECSCREEN] do
+  begin
+    FontType  := 'UpChars07';
+    FontColor := 65535;
+    ColorTol  := 5;
+    Text      := 'about';
+    TxtBounds := toBox(118, 70, 160, 85);
+  end;
+  with Interfaces[MAKESCREEN] do
+  begin
+    FontType  := 'StatChars07';
+    FontColor := 4739168;
+    ColorTol  := 5;
+    Text      := 'quantity';
+    TxtBounds := toBox(58, 370, 460, 385);
+  end;
+end;
+
+function TInterface.isVisible(): boolean;
+var
+  s : String;
+begin
+  //if Self = Interfaces[MAKESCREEN] then
+  if (Self.Text = 'quantity') then  // Temporary work-around
+  begin
+    s := getTextAtEx(Self.TxtBounds.X1, Self.TxtBounds.Y1, Self.TxtBounds.X2, Self.TxtBounds.Y2, 0, 5, 1, Self.FontColor, Self.ColorTol, Self.FontType);
+    result := (Pos(Self.Text, s) > 0);
+  end else
+    result := findTextTPA(Self.FontColor, Self.ColorTol, Self.TxtBounds, Self.Text, Self.FontType, -1);
+end;
+
+function TInterface.waitVisible(WaitTime: Integer): boolean;
+var
+  T : Timer;
+begin
+  T.start();
+  while T.timeElapsed < WaitTime do
+  begin
+    if Self.isVisible() then exit(true);
+    wait(70);
+  end;
+end;
+
+function isInterfaceOpen(): Boolean;
+var
+  i : Integer;
+begin
+  for i:=0 to high(Interfaces) do
+    if Interfaces[i].isVisible() then
+    begin
+      writeln(toStr(i));
+      Exit(true);
+    end;
+  result := false;
+end;
+
+(*
+    by NaumanAkhlaQ, Narcle, Nava2, and Flight
+    Updated: 18 December 2013 by Flight
+*)
+
+function getBankMode(): String; forward;
+function closeInterface(): boolean;
+var
+  T      : Timer;
+  pnt    : TPoint;
+  tmpCol : TColEx;
+  x,y    : Integer;
+  Col    : TIntegerArray;
+begin
+  if menuOpen() then
+  begin
+    T.start();
+    while (T.timeElapsed() < 3000) do
+    begin
+      getMousePos(X, Y);
+      missMouse(Point(x,y-10), 0, 0);
+      if not menuOpen() then
+        break;
+    end;
+  end;
+
+  if Interfaces[PINSCREEN].isVisible() then
+  begin
+    T.start();
+    while (Interfaces[PINSCREEN].isVisible() and (T.timeElapsed() < 10000)) do
+    begin
+      gaussMouseBox(332, 258, 489, 281, MOUSE_LEFT);
+      Wait(500);
+    end;
+    if not Interfaces[PINSCREEN].isVisible() then
+      Exit(True);
+  end;
+
+  if (Interfaces[BANKSCREEN].isVisible() or
+    Interfaces[SHOPSCREEN].isVisible()) then
+  begin
+    if (getBankMode() = 'Standard') then
+      mouseBox(toBox(479,33,495,50), MOUSE_LEFT)
+    else if (getBankMode() = 'Tabbed') then
+      mouseBox(toBox(480,15,495,31), MOUSE_LEFT);
+    Exit(True);
+  end;
+
+  // handles the advanced skill guide window
+  tmpCol.create(8042720,20);
+  if tmpCol.findIn(toBox(495,18,505,23), pnt) then
+  begin
+    brakeMMouse(pnt, 3, 3, False);
+    fastClick(MOUSE_LEFT);
+    Exit(True);
+  end;
+
+  Col := [1118997,  1449250,  {Main typ 1}
+          3912691,  1973857,  {Quest}
+          4282212,  2503226,  {Main typ 2}
+          39423,    13567,    {Red X}
+          1514271,  1580837,  {Deposit Box}
+          1383457,  2107437];
+end;

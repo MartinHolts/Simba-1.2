@@ -1,0 +1,256 @@
+{
+=====
+Magic
+=====
+}
+
+// Magic routines by Dan the man
+
+
+function getSpellBox(Name: String): Tbox;
+begin
+  case Capitalize(LowerCase(Name)) of
+  //Normal Spell Book
+    'Lumbridge Home Teleport':      Result := toBox(559, 220, 582, 243);
+    'Wind Strike':                  Result := toBox(583, 220, 606, 243);
+    'Confuse':                      Result := toBox(607, 220, 630, 243);
+    'Enchant Crossbow Bolt':        Result := toBox(631, 220, 654, 243);
+    'Water Strike':                 Result := toBox(655, 220, 678, 243);
+    'Lvl-1 Enchant':                Result := toBox(679, 220, 702, 243);
+    'Earth Strike':                 Result := toBox(703, 220, 726, 243);
+    'Weaken':                       Result := toBox(559, 244, 582, 267);
+    'Fire Strike':                  Result := toBox(583, 244, 606, 267);
+    'Bones to Bananas':             Result := toBox(607, 244, 630, 267);
+    'Wind Bolt':                    Result := toBox(631, 244, 654, 267);
+    'Curse':                        Result := toBox(655, 244, 678, 267);
+    'Bind':                         Result := toBox(679, 244, 702, 267);
+    'Low Level Alchemy':            Result := toBox(703, 244, 726, 267);
+    'Water Bolt':                   Result := toBox(559, 268, 582, 291);
+    'Varrock Teleport':             Result := toBox(583, 268, 606, 291);
+    'Lvl-2 Enchant':                Result := toBox(607, 268, 630, 291);
+    'Earth Bolt':                   Result := toBox(631, 268, 654, 291);
+    'Lumbridge Teleport':           Result := toBox(655, 268, 678, 291);
+    'Telekenetic Grab':             Result := toBox(679, 268, 702, 291);
+    'Fire Bolt':                    Result := toBox(703, 268, 726, 291);
+    'Falador Teleport':             Result := toBox(559, 292, 582, 315);
+    'Crumble Undead':               Result := toBox(583, 292, 606, 315);
+    'Teleport to House':            Result := toBox(607, 292, 630, 315);
+    'Wind Blast':                   Result := toBox(631, 292, 654, 315);
+    'Superhead Item':               Result := toBox(655, 292, 678, 315);
+    'Camelot Teleport':             Result := toBox(679, 292, 702, 315);
+    'Water Blast':                  Result := toBox(703, 292, 726, 315);
+    'Lvl-3 Enchant':                Result := toBox(559, 316, 582, 339);
+    'Iban Blast':                   Result := toBox(583, 316, 606, 339);
+    'Snare':                        Result := toBox(607, 316, 630, 339);
+    'Magic Dart':                   Result := toBox(631, 316, 654, 339);
+    'Ardougne Teleport':            Result := toBox(655, 316, 678, 339);
+    'Earth Blast':                  Result := toBox(679, 316, 702, 339);
+    'High Level Alchemy':           Result := toBox(703, 316, 726, 339);
+    'Charge Water Orb':             Result := toBox(559, 340, 582, 363);
+    'Lvl-4 Enchant':                Result := toBox(583, 340, 606, 363);
+    'Watchtower Teleport':          Result := toBox(607, 340, 630, 363);
+    'Fire Blast':                   Result := toBox(631, 340, 654, 363);
+    'Charge Earth Orb':             Result := toBox(655, 340, 678, 363);
+    'Bones to Peaches':             Result := toBox(679, 340, 702, 363);
+    'Saradomin Strike':             Result := toBox(703, 340, 726, 363);
+    'Claws of Guthix':              Result := toBox(559, 364, 582, 387);
+    'Flames of Zamorak':            Result := toBox(583, 364, 606, 387);
+    'Trollheim Teleport':           Result := toBox(607, 364, 630, 387);
+    'Wind Wave':                    Result := toBox(631, 364, 654, 387);
+    'Charge Fire Orb':              Result := toBox(655, 364, 678, 387);
+    'Teleport to Ape Atoll':        Result := toBox(679, 364, 702, 387);
+    'Water Wave':                   Result := toBox(703, 364, 726, 387);
+    'Charge Air Orb':               Result := toBox(559, 388, 582, 411);
+    'Vulnerability':                Result := toBox(583, 388, 606, 411);
+    'Lvl-5 Enchant':                Result := toBox(607, 388, 630, 411);
+    'Teleport to Kourend':          Result := toBox(631, 388, 654, 411);
+    'Earth Wave':                   Result := toBox(655, 388, 678, 411);
+    'Enfeeble':                     Result := toBox(679, 388, 702, 411);
+    'Teleother Lumbridge':          Result := toBox(703, 388, 726, 411);
+    'Fire Wave':                    Result := toBox(559, 412, 582, 435);
+    'Entangle':                     Result := toBox(583, 412, 606, 435);
+    'Stun':                         Result := toBox(607, 412, 630, 435);
+    'Charge':                       Result := toBox(631, 412, 654, 435);
+    'Teleother Falador':            Result := toBox(655, 412, 678, 435);
+    'Tele Block':                   Result := toBox(679, 412, 702, 435);
+    'Teleport to Bounty Target':    Result := toBox(703, 412, 726, 435);
+    'Lvl-6 Enchant':                Result := toBox(559, 436, 582, 459);
+    'Teleother Camelot':            Result := toBox(583, 436, 606, 459);
+    'Lvl-7 Enchant':                Result := toBox(607, 436, 630, 459);
+  //Lunar SpellBook
+    'Lunar Home Teleport':          Result := toBox(555, 213, 578, 236);
+    'Bake Pie':                     Result := toBox(585, 213, 608, 236); //Col.create(4241631, 16, 0.26, 1.85);
+    'Geomancy':                     Result := toBox(615, 213, 638, 236); //Col.create(1675552, 19, 0.41, 1.57);
+    'Cure Plant':                   Result := toBox(645, 213, 668, 236); //Col.create(1675552, 19, 0.41, 1.57);
+    'Monster Examine':              Result := toBox(675, 213, 698, 236); //Col.create(4241631, 16, 0.26, 1.85);
+    'NPC Contact':                  Result := toBox(705, 213, 728, 236); //Col.create(11986111, 13, 2.32, 3.48);
+    'Cure Other':                   Result := toBox(555, 242, 578, 265); //Col.create(1675552, 19, 0.41, 1.57);
+    'Humidify':                     Result := toBox(585, 242, 608, 265); //Col.create(11109949, 17, 0.10, 1.40);
+    'Moonclan Teleport':            Result := toBox(615, 242, 638, 265); //Col.create(1675552, 19, 0.41, 1.57);
+    'Tele Group Moonclan':          Result := toBox(645, 242, 668, 265); //Col.create(11986111, 13, 2.32, 3.48);
+    'Cure Me':                      Result := toBox(675, 242, 698, 265); //Col.create(1675552, 19, 0.41, 1.57);
+    'Ourania Teleport':             Result := toBox(705, 242, 728, 265); //Col.create(4241631, 16, 0.26, 1.85);
+    'Hunter Kit':                   Result := toBox(555, 271, 578, 294); //Col.create(4473661, 5, 8.42, 0.70);
+    'Waterbirth Teleport':          Result := toBox(585, 271, 608, 294); //Col.create(11986111, 13, 2.32, 3.48);
+    'Tele Group Waterbirth':        Result := toBox(615, 271, 638, 294); //Col.create(11986111, 13, 2.32, 3.48);
+    'Cure Group':                   Result := toBox(645, 271, 668, 294); //Col.create(1675552, 19, 0.41, 1.57);
+    'Stat Spy':                     Result := toBox(675, 271, 698, 294); //Col.create(11986111, 13, 2.32, 3.48);
+    'Barbarian Teleport':           Result := toBox(705, 271, 728, 294); //Col.create(1675552, 19, 0.41, 1.57);
+    'Tele Group Barbarian':         Result := toBox(555, 300, 578, 323); //Col.create(11986111, 13, 2.32, 3.48);
+    'Spin Flax':                    Result := toBox(585, 300, 608, 323); //Col.create(4241631, 16, 0.26, 1.85);
+    'Superglass Make':              Result := toBox(615, 300, 638, 323); //Col.create(11986111, 13, 2.32, 3.48);
+    'Tan Leather':                  Result := toBox(645, 300, 668, 323); //Col.create(6852530, 12, 0.11, 1.05);
+    'Khazard Teleport':             Result := toBox(675, 300, 698, 323); //Col.create(1675552, 19, 0.41, 1.57);
+    'Tele Group Khazard':           Result := toBox(705, 300, 728, 323); //Col.create(4241631, 16, 0.26, 1.85);
+    'Dream':                        Result := toBox(555, 329, 578, 352); //Col.create(11986111, 13, 2.32, 3.48);
+    'String Jewellery':             Result := toBox(585, 329, 608, 352); //Col.create(4241631, 16, 0.26, 1.85);
+    'Stat Restore Pot Share':       Result := toBox(615, 329, 638, 352); //Col.create(11986111, 13, 2.32, 3.48);
+    'Magic Imbue':                  Result := toBox(645, 329, 668, 352); //Col.create(11986111, 13, 2.32, 3.48);
+    'Fertile Soil':                 Result := toBox(675, 329, 698, 352); //Col.create(1675552, 19, 0.41, 1.57);
+    'Boost Potion Share':           Result := toBox(705, 329, 728, 352); //Col.create(11986111, 13, 2.32, 3.48);
+    'Fishing Guild Teleport':       Result := toBox(555, 358, 578, 381); //Col.create(11986111, 13, 2.32, 3.48);
+    'Teleport to Bounty Target':    Result := toBox(585, 358, 608, 381);
+    'Tele Group Fishing Guild':     Result := toBox(615, 358, 638, 381); //Col.create(11986111, 13, 2.32, 3.48);
+    'Plank Make':                   Result := toBox(645, 358, 668, 381); //Col.create(4241631, 16, 0.26, 1.85);
+    'Catherby Teleport':            Result := toBox(675, 358, 698, 381); //Col.create(11986111, 13, 2.32, 3.48);
+    'Tele Group Catherby':          Result := toBox(705, 358, 728, 381); //Col.create(11986111, 13, 2.32, 3.48);
+    'Recharge Dragonstone':         Result := toBox(555, 387, 578, 410); //Col.create(4241631, 16, 0.26, 1.85);
+    'Ice Plateau Teleport':         Result := toBox(585, 387, 608, 410); //Col.create(11986111, 13, 2.32, 3.48);
+    'Tele Group Ice Plateau':       Result := toBox(615, 387, 638, 410); //Col.create(11986111, 13, 2.32, 3.48);
+    'Energy Transfer':              Result := toBox(645, 387, 668, 410); //Col.create(4241631, 16, 0.26, 1.85);
+    'Heal Other':                   Result := toBox(675, 387, 698, 410); //Col.create(11986111, 13, 2.32, 3.48);
+    'Vengeance Other':              Result := toBox(705, 387, 728, 410); //Col.create(11986111, 13, 2.32, 3.48);
+    'Vengeance':                    Result := toBox(555, 416, 578, 439); //Col.create(71890, 9, 0.17, 0.11);
+    'Heal Group':                   Result := toBox(585, 416, 608, 439); //Col.create(11986111, 13, 2.32, 3.48);
+    'Spellbook Swap':               Result := toBox(615, 416, 638, 439); //Col.create(4241631, 16, 0.26, 1.85);
+
+  //Ancient spells
+    'Edgeville Home Teleport':      Result := toBox(566, 213, 589, 236);
+    'Smoke Rush':                   Result := toBox(611, 213, 634, 236);
+    'Shadow Rush':                  Result := toBox(657, 213, 680, 236);
+    'Paddewwa Teleport':            Result := toBox(698, 213, 721, 236);
+    'Blood Rush':                   Result := toBox(566, 241, 589, 264);
+    'Ice Rush':                     Result := toBox(611, 241, 634, 264);
+    'Senntisten Teleport':          Result := toBox(657, 241, 680, 264);
+    'Smoke Burst':                  Result := toBox(698, 241, 721, 264);
+    'Shadow Burst':                 Result := toBox(566, 269, 589, 292);
+    'Kharyrll Teleport':            Result := toBox(611, 269, 634, 292);
+    'Blood Burst':                  Result := toBox(657, 269, 680, 292);
+    'Ice Burst':                    Result := toBox(698, 269, 721, 292);
+    'Lassar Teleport':              Result := toBox(566, 297, 589, 320);
+    'Smoke Blitz':                  Result := toBox(611, 297, 634, 320);
+    'Shadow Blitz':                 Result := toBox(657, 297, 680, 320);
+    'Dareeyak Teleport':            Result := toBox(698, 297, 721, 320);
+    'Blood Blitz':                  Result := toBox(566, 325, 589, 348);
+    'Ice Blitz':                    Result := toBox(611, 325, 634, 348);
+    'Carrallangar Teleport':        Result := toBox(657, 325, 680, 348);
+    'Teleport to Bounty Target':    Result := toBox(698, 325, 721, 348);
+    'Smoke Barrage':                Result := toBox(566, 353, 589, 376);
+    'Shadow Barrage':               Result := toBox(611, 353, 634, 376);
+    'Annakarl Teleport':            Result := toBox(657, 353, 680, 376);
+    'Blood Barrage':                Result := toBox(698, 353, 721, 376);
+    'Ice Barrage':                  Result := toBox(566, 381, 589, 404);
+    'Ghorrock Teleport':            Result := toBox(611, 381, 634, 404);
+  end;
+end;
+
+{*
+isSpellSelected
+~~~~~~~~~~~~
+
+.. code-block:: AeroLib
+
+    isSpellSelected: Boolean;
+
+Returns true if the specified spell is selected.
+
+Example:
+
+    if isSpellSelected then
+      WriteLn('We currently have a spell clicked.');
+
+*}
+
+function isSpellSelected: boolean;
+var
+  col_SpellActive: TColEx;
+begin
+  result := False;
+  col_SpellActive.create(7829766, 25, 0.68, 0.42);
+  if col_SpellActive.FindIn(toBox(40, 6, 108, 20)) then
+    result := waitUpTextMulti(['->', '>'], 150);
+end;
+
+{*
+IsSpellActive
+~~~~~~~~~~~~
+
+.. code-block:: AeroLib
+
+    IsSpellActive(SpellName:String): Boolean
+
+Checks to see if the desired spell is illuminated.
+
+Examples:
+
+    if IsSpellActive('Smoke Burst') then
+      WriteLn('We can cast Smoke Burst!');
+
+*}
+function IsSpellActive(SpellName:String): Boolean;
+var
+  Box: Tbox;
+  i:integer;
+  SpellColArray: Array of TColEx;
+begin
+  SpellColArray := [createCol(4241631, 16, 0.26, 1.85), createCol(1675552, 19, 0.41, 1.57), createCol(11986111, 13, 2.32, 3.48), createCol(11109949, 17, 0.10, 1.40), createCol(4473661, 5, 8.42, 0.70), createCol(6852530, 12, 0.11, 1.05), createCol(71890, 9, 0.17, 0.11)];
+  Result := False;
+  if gameTab(TAB_MAGIC) then
+  begin
+    Box := getSpellBox(SpellName);
+    for i := 0 to high(SpellColArray) do
+      if SpellColArray[i].FindIn(Box) then
+        exit(true);
+    warn('May not have enough runes for the spell.', WT_CORE);
+  end;
+end;
+
+{*
+CastSpell
+~~~~~~~~~~~~
+
+.. code-block:: AeroLib
+
+    CastSpell(SpellName: String): Boolean;
+
+Casts a spell with the designated name.
+
+Examples:
+
+    if CastSpell('Smoke Burst') then
+      WriteLn('We cast ' +SpellName);
+
+    CastSpell('Smoke Burst');
+
+*}
+
+
+function castSpell(SpellName: String): Boolean;
+var
+  Box: Tbox;
+begin
+  Result := False;
+  if gameTab(TAB_MAGIC) then
+  begin
+    Box := getSpellBox(SpellName);
+    if not IsSpellActive(SpellName) then
+      exit(false);
+    mousebox(Box, MOUSE_MOVE);
+    if waitUpTextMulti([SpellName], 150) then
+    begin
+      fastClick(MOUSE_LEFT);
+      Exit(True);
+    end;
+  warn('Spell missing. May be incorrect spell book.', WT_CORE);
+  end;
+end;
