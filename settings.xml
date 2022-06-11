@@ -1,55 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Simba>
   <Extensions>
-    <ExtensionCount>8</ExtensionCount>
-    <Extension3>
-      <Settings>
-        <Extensions_Visible>false</Extensions_Visible>
-        <Extensions_OverrideUpdate>false</Extensions_OverrideUpdate>
-        <Extensions_Update>true</Extensions_Update>
-        <Extensions_CheckforUpdates>true</Extensions_CheckforUpdates>
-        <Extensions_TimerInterval>3600000</Extensions_TimerInterval>
-        <Extensions_Version>11</Extensions_Version>
-      </Settings>
-      <Path>C:\Simba\Extensions\extension.sex</Path>
-      <Enabled>True</Enabled>
-    </Extension3>
-    <Extension0>
-      <Path>C:\Simba\Extensions\associate.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension0>
-    <Extension1>
-      <Path>C:\Simba\Extensions\CRov.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension1>
-    <Extension2>
-      <Path>C:\Simba\Extensions\dtm_editor.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension2>
-    <Extension4>
-      <Path>C:\Simba\Extensions\formatter.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension4>
-    <Extension5>
-      <Path>C:\Simba\Extensions\paster.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension5>
-    <Extension6>
-      <Path>C:\Simba\Extensions\security.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension6>
-    <Extension7>
-      <Path>C:\Simba\Extensions\srl.sex</Path>
-      <Enabled>False</Enabled>
-    </Extension7>
+    <ExtensionCount>0</ExtensionCount>
   </Extensions>
   <Settings>
     <ShowBalloonHints>True</ShowBalloonHints>
     <Includes>
-      <Path>C:\Simba\Includes\</Path>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Includes\</Path>
     </Includes>
     <Fonts>
-      <Path>C:\Simba\Fonts\</Path>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Fonts\</Path>
       <LoadOnStartUp>True</LoadOnStartUp>
       <Version>16</Version>
       <VersionLink>http://simba.villavu.com/bin/Fonts/Version</VersionLink>
@@ -57,11 +17,11 @@
       <CheckForUpdates>True</CheckForUpdates>
     </Fonts>
     <Extensions>
-      <Path>C:\Simba\Extensions\</Path>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\</Path>
       <FileExtension>sex</FileExtension>
     </Extensions>
     <Scripts>
-      <Path>C:\Simba\Scripts\</Path>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Scripts\</Path>
     </Scripts>
     <CodeInsight>
       <ShowHidden>False</ShowHidden>
@@ -83,13 +43,13 @@
       <AllowSysCalls>False</AllowSysCalls>
     </Interpreter>
     <SourceEditor>
-      <DefScriptPath>C:\Simba\default.simba</DefScriptPath>
+      <DefScriptPath>C:\Users\Nixes\Desktop\Git\Simba-1.2\..\..\..\..\..\Simba\default.simba</DefScriptPath>
       <LazColors>True</LazColors>
       <Font>
         <Name>Courier New</Name>
         <Size>10</Size>
         <Color>536870912</Color>
-        <Styles></Styles>
+        <Styles/>
         <CharSet>0</CharSet>
         <Quality>2</Quality>
         <Pitch>2</Pitch>
@@ -100,7 +60,7 @@
       <URL>http://simba.villavu.com/bin/news</URL>
     </News>
     <Plugins>
-      <Path>C:\Simba\Plugins\</Path>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Plugins\</Path>
     </Plugins>
     <Tabs>
       <OpenNextOnClose>False</OpenNextOnClose>
@@ -138,20 +98,21 @@
   </Settings>
   <ScriptManager>
     <URL>http://127.0.0.1/</URL>
-    <Path>C:\Simba\Scripts\ScriptStorage.xml</Path>
+    <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\..\..\..\..\..\Simba\Scripts\ScriptStorage.xml</Path>
     <File>ScriptManager.xml</File>
     <FirstRun>True</FirstRun>
   </ScriptManager>
   <LastConfig>
     <MainForm>
-      <Position>180:76:660:623</Position>
+      <Position>-8:0:660:623</Position>
       <State>normal</State>
       <FunctionListShown>True</FunctionListShown>
       <RecentFiles>
-        <Count>3</Count>
+        <Count>4</Count>
         <File0>C:\Simba\Scripts\fletching.Simba</File0>
         <File1>C:\Simba\Includes\AeroLib\entities\player\WorldHandler.simba</File1>
         <File2>C:\Simba\Scripts\Nixes F2P AIO Powerfisher.Simba</File2>
+        <File3>C:\Users\Nixes\Desktop\Git\Emps-World-scripts\3 1 Mining coal miner.Simba</File3>
       </RecentFiles>
     </MainForm>
     <Console>

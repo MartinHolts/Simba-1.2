@@ -1,0 +1,23 @@
+Program exception! 
+Stacktrace:
+
+Exception class: EAccessViolation
+Message: Access violation
+  $0040C32F
+  $00451C9F
+  $0055441D
+  $00543795
+  $005560AC
+  $00416C7A
+  $00451C9F
+  $0055441D
+  $00543795
+  $00517104
+  $0040C332
+  $00430ABA
+  $004194CD
+  $0041C570
+  $0041C794
+  $0040C756
+  $00541691
+Simba Version: 1206
