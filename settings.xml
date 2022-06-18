@@ -1,7 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Simba>
   <Extensions>
-    <ExtensionCount>0</ExtensionCount>
+    <ExtensionCount>8</ExtensionCount>
+    <Extension3>
+      <Settings>
+        <Extensions_Visible>false</Extensions_Visible>
+        <Extensions_OverrideUpdate>false</Extensions_OverrideUpdate>
+        <Extensions_Update>true</Extensions_Update>
+        <Extensions_CheckforUpdates>true</Extensions_CheckforUpdates>
+        <Extensions_TimerInterval>3600000</Extensions_TimerInterval>
+        <Extensions_Version>11</Extensions_Version>
+      </Settings>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\extension.sex</Path>
+      <Enabled>True</Enabled>
+    </Extension3>
+    <Extension0>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\associate.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension0>
+    <Extension1>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\CRov.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension1>
+    <Extension2>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\dtm_editor.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension2>
+    <Extension4>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\formatter.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension4>
+    <Extension5>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\paster.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension5>
+    <Extension6>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\security.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension6>
+    <Extension7>
+      <Path>C:\Users\Nixes\Desktop\Git\Simba-1.2\Extensions\srl.sex</Path>
+      <Enabled>False</Enabled>
+    </Extension7>
   </Extensions>
   <Settings>
     <ShowBalloonHints>True</ShowBalloonHints>
@@ -108,12 +148,12 @@
       <State>normal</State>
       <FunctionListShown>True</FunctionListShown>
       <RecentFiles>
-        <Count>4</Count>
+        <Count>5</Count>
         <File0>C:\Simba\Scripts\fletching.Simba</File0>
         <File1>C:\Simba\Includes\AeroLib\entities\player\WorldHandler.simba</File1>
         <File2>C:\Simba\Scripts\Nixes F2P AIO Powerfisher.Simba</File2>
         <File3>C:\Users\Nixes\Desktop\Git\Emps-World-scripts\3 1 Mining coal miner.Simba</File3>
-        <File4></File4>
+        <File4>C:\Users\Nixes\Desktop\Git\Emps-World-scripts\1 7 Runecrafting runecrafter.Simba</File4>
       </RecentFiles>
     </MainForm>
     <Console>
